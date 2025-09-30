@@ -1,0 +1,38 @@
+/* Tailwind CDN provides base, components, and utilities at runtime. */
+/* Custom utility classes maintained here (no @tailwind or @layer). */
+
+.bg-gradient-subtle {
+  background-image: linear-gradient(to bottom, #f0f7ff, #ffffff);
+}
+.bg-gradient-card {
+  background-image: linear-gradient(to bottom right, rgba(59,130,246,0.06), rgba(59,130,246,0.03));
+}
+.bg-gradient-primary {
+  background-image: linear-gradient(90deg, #2563eb 0%, #3b82f6 100%);
+}
+.shadow-custom-sm {
+  --tw-shadow: 0 1px 2px 0 rgba(0,0,0,0.06);
+  --tw-shadow-colored: 0 1px 2px 0 var(--tw-shadow-color);
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+.shadow-custom-md {
+  --tw-shadow: 0 4px 12px -2px rgba(0,0,0,0.08);
+  --tw-shadow-colored: 0 4px 12px -2px var(--tw-shadow-color);
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+.shadow-custom-lg {
+  --tw-shadow: 0 12px 32px -4px rgba(37,99,235,0.35);
+  --tw-shadow-colored: 0 12px 32px -4px var(--tw-shadow-color);
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+.shadow-professional {
+  --tw-shadow: 0 10px 25px -5px rgba(0,0,0,0.12), 0 8px 10px -6px rgba(0,0,0,0.1);
+  --tw-shadow-colored: 0 10px 25px -5px var(--tw-shadow-color), 0 8px 10px -6px var(--tw-shadow-color);
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+.bg-background { background-color: #ffffff; }
+.text-foreground { color: #111827; }
+.text-muted-foreground { color: #6b7280; }
+.bg-sidebar { background-color: #0f172a; }
+.text-sidebar-foreground { color: #e5e7eb; }
+.text-primary { color: #2563eb; }
