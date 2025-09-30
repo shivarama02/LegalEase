@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import LawInfo
+from .models import LawInfo, Client, Lawyer
 
 @admin.register(LawInfo)
 class LawInfoAdmin(admin.ModelAdmin):
@@ -7,10 +7,14 @@ class LawInfoAdmin(admin.ModelAdmin):
     search_fields = ('title', 'category', 'section_code')
     list_filter = ('category',)
 
-from .models import LawyerInfo
+@admin.register(Client)
+class ClientAdmin(admin.ModelAdmin):
+    list_display = ('cname', 'email', 'phone', 'username', 'created_at')
+    search_fields = ('cname', 'email', 'phone', 'username')
+    list_filter = ('created_at',)
 
-@admin.register(LawyerInfo)
-class LawyerInfoAdmin(admin.ModelAdmin):
-    list_display = ('full_name', 'specialization', 'location', 'consultation_fee', 'is_verified')
-    list_filter = ('specialization', 'location', 'is_verified')
-    search_fields = ('full_name', 'specialization', 'location')
+@admin.register(Lawyer)
+class LawyerAdmin(admin.ModelAdmin):
+    list_display = ('lname', 'specialization', 'location', 'experience_years', 'charge', 'email')
+    list_filter = ('specialization', 'location')
+    search_fields = ('lname', 'specialization', 'location', 'email')
