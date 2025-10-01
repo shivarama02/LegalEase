@@ -9,6 +9,14 @@ import UserDashboard from './pages/user/Dashboard';
 import LawyerDashboard from './pages/lawyer/Dashboard';
 import LawyerLawInfo from './pages/lawyer/LawInfo';
 import AdminDashboard from './pages/admin/Dashboard';
+import LawInfoManagement from './pages/admin/LawInfoManagement';
+import LawyerManagement from './pages/admin/LawyerManagement';
+import UserManagement from './pages/admin/UserManagement';
+import ComplaintTemplateManagement from './pages/admin/ComplaintTemplateManagement';
+import FeedbackManagement from './pages/admin/FeedbackManagement';
+import Reports from './pages/admin/Reports';
+import NotificationManagement from './pages/admin/NotificationManagement';
+import AdminSettings from './pages/admin/Settings';
 import LawInfo from './pages/user/LawInfo';
 import LawyerChatAssistant from './pages/lawyer/ChatAssistant';
 import LawyerProfile from './pages/lawyer/LawyerProfile';
@@ -61,6 +69,16 @@ function App() {
             <Route path="/lawyer/lawyerfeedback" element={<LawyerFeedback />} />
             <Route path="/lawyer/lawyernotifications" element={<LawyerNotifications />} />
             <Route path="/admin/Dashboard" element={<AdminDashboard />} />
+            {/* Admin routes */}
+            <Route path="/admin-dashboard" element={<AdminDashboard />} />
+            <Route path="/admin/law-info-management" element={<LawInfoManagement />} />
+            <Route path="/admin/lawyer-management" element={<LawyerManagement />} />
+            <Route path="/admin/user-management" element={<UserManagement />} />
+            <Route path="/admin/complaint-templates" element={<ComplaintTemplateManagement />} />
+            <Route path="/admin/feedback-management" element={<FeedbackManagement />} />
+            <Route path="/admin/notification-management" element={<NotificationManagement />} />
+            <Route path="/admin/reports" element={<Reports />} />
+            <Route path="/admin/settings" element={<AdminSettings />} />
           </Routes>
         </main>
       </div>
