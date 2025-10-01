@@ -7,7 +7,7 @@ import {
   Users,
   MessageCircle,
   Bell,
-  Settings,
+  MessageSquare,
   User as UserIcon,
   LogOut,
   Menu,
@@ -105,6 +105,10 @@ export default function UserSidebar() {
           <NavLink to="/user/notifications" className={getClass}>
             <Bell className="h-5 w-5" />
             <span>Notifications</span>
+          </NavLink>
+          <NavLink to="/user/feedback" className={getClass}>
+            <MessageSquare className="h-5 w-5" />
+            <span>Feedback</span>
           </NavLink>
           {/* <NavLink to="/user/settings" className={getClass}>
             <Settings className="h-5 w-5" />

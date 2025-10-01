@@ -33,6 +33,7 @@ import Settings from './pages/user/Settings';
 import UserProfile from './pages/user/UserProfile';
 import UserAppointmentSchedule from './pages/user/AppointmentSchedule';
 import LawyerProfileView from './pages/user/LawyerProfileView';
+import UserFeedback from './pages/user/Feedback';
 import './App.css';
 
 function App() {
@@ -56,6 +57,7 @@ function App() {
             <Route path="/user/chat" element={<ChatAssistant />} />
             <Route path="/user/notifications" element={<Notifications />} />
             <Route path="/user/settings" element={<Settings />} />
+            <Route path="/user/feedback" element={<UserFeedback />} />
             <Route path="/user/profile" element={<UserProfile />} />
             <Route path="/lawyer/Dashboard" element={<LawyerDashboard />} />
             <Route path="/lawyer/Laws" element={<LawyerLawInfo />} />
