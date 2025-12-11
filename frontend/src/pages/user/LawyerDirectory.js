@@ -102,7 +102,7 @@ export default function LawyerDirectory() {
 							<Users className="h-8 w-8 text-blue-600" />
 							<h1 className="text-3xl font-bold text-gray-900">Lawyer Directory</h1>
 						</div>
-						<button className="px-4 py-2 rounded bg-gradient-primary shadow-sm text-sm">Ask AI for Recommendations</button>
+						{/* <button className="px-4 py-2 rounded bg-gradient-primary shadow-sm text-sm">Ask AI for Recommendations</button> */}
 					</div>
 
 					<div className="mb-8 shadow-custom-md bg-white rounded">

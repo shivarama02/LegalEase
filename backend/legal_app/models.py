@@ -65,6 +65,7 @@ class LawDetail(models.Model):
         ("cyber", "Cyber Crime"),
         ("property", "Property / Tenancy"),
         ("corporate", "Corporate / Company"),
+        ("civil", "Civil Law"),
     ]
     title = models.CharField(max_length=255)
     category = models.CharField(max_length=30, choices=CATEGORY_CHOICES)
@@ -72,6 +73,7 @@ class LawDetail(models.Model):
     section_reference = models.CharField(max_length=100, blank=True)
     summary = models.TextField(help_text="Short structured summary")
     full_text = models.TextField(blank=True)
+    penalties = models.TextField(blank=True, help_text="Penalties/punishments applicable, free text")
     related_sections = models.CharField(max_length=300, blank=True, help_text="Comma separated section codes")
     tags = models.CharField(max_length=300, blank=True, help_text="Comma separated tags")
     source_url = models.URLField(blank=True)
@@ -83,6 +85,29 @@ class LawDetail(models.Model):
 
     def __str__(self):
         return f"{self.title} - {self.category}"
+
+
+class LawList(models.Model):
+    """A curated or category-based list of laws.
+
+    This model lets you group multiple LawDetail records under a single list
+    (e.g., "Criminal Law" list), optionally tying it to a category key that
+    matches LawDetail.CATEGORY_CHOICES.
+    """
+    title = models.CharField(max_length=200)
+    slug = models.SlugField(unique=True)
+    description = models.TextField(blank=True)
+    # Optional: tie to a category key from LawDetail
+    category = models.CharField(max_length=30, blank=True)
+    items = models.ManyToManyField('LawDetail', related_name='law_lists', blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['title']
+
+    def __str__(self):
+        return self.title
 
 # Complaint model capturing user-submitted complaints
 class Complaint(models.Model):
@@ -195,3 +220,32 @@ class Appointment(models.Model):
 
     def __str__(self):
         return f"{self.name} - {self.case_type} on {self.appointment_date} {self.appointment_time}"
+
+# General user feedback for platform/app (optionally can reference a lawyer)
+class Feedback(models.Model):
+    FEEDBACK_TYPES = [
+        ("lawyer_review", "Lawyer Review"),
+        ("platform", "Platform Feedback"),
+        ("assistant", "AI Assistant Feedback"),
+        ("bug", "Bug Report"),
+        ("feature", "Feature Request"),
+        ("general", "General Inquiry"),
+    ]
+
+    user = models.ForeignKey(User, related_name='feedbacks', on_delete=models.SET_NULL, null=True, blank=True)
+    feedback_type = models.CharField(max_length=20, choices=FEEDBACK_TYPES)
+    rating = models.PositiveSmallIntegerField(help_text="Overall rating 1-5")
+    name = models.CharField(max_length=150)
+    email = models.EmailField()
+    subject = models.CharField(max_length=255, blank=True)
+    message = models.TextField()
+    # Optional linkage if feedback is about a specific lawyer
+    lawyer = models.ForeignKey(Lawyer, related_name='feedbacks', on_delete=models.SET_NULL, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.feedback_type} - {self.rating} by {self.name}"

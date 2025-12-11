@@ -4,7 +4,7 @@ import UserSidebar from '../../components/UserSidebar';
 import { FileText, Shield, Briefcase, Home, Users, Cpu, Building2 } from 'lucide-react';
 
 // Complaint categories definition
-const COMPLAINT_TYPES = [
+export const COMPLAINT_TYPES = [
   {
     key: 'consumer',
     title: 'Consumer Protection',

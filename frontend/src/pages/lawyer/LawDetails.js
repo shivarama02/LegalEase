@@ -1,8 +1,67 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import LawyerSidebar from '../../components/LawyerSidebar';
 
-// Static replica of provided Law Details HTML (no dynamic logic yet)
+// Dynamic Law Details page – fetches a single LawDetail by id and renders it
 export default function LawDetails() {
+	const { id } = useParams(); // expects route /lawyer/laws/:category/:id
+	const [law, setLaw] = useState(null);
+	const [loading, setLoading] = useState(true);
+	const [error, setError] = useState(null);
+	const [activeTab, setActiveTab] = useState('full'); // 'full' | 'penalties' | 'related'
+
+	const API_BASE = useMemo(() => process.env.REACT_APP_API || 'http://localhost:8000', []);
+
+	useEffect(() => {
+		let isMounted = true;
+		async function fetchLaw() {
+			setLoading(true);
+			setError(null);
+			try {
+				const url = `${API_BASE}/api/lawdetails/${id}/`;
+				const res = await fetch(url, { headers: { Accept: 'application/json' } });
+				const contentType = res.headers.get('content-type') || '';
+				if (!res.ok) {
+					const text = await res.text();
+					throw new Error(`Failed to fetch: ${res.status} ${res.statusText} - ${text.slice(0, 200)}`);
+				}
+				if (!contentType.includes('application/json')) {
+					const text = await res.text();
+					throw new Error(`Unexpected response type: ${contentType}. Body: ${text.slice(0, 200)}`);
+				}
+				const data = await res.json();
+				if (isMounted) setLaw(data);
+			} catch (e) {
+				if (isMounted) setError(e.message || String(e));
+			} finally {
+				if (isMounted) setLoading(false);
+			}
+		}
+		if (id) fetchLaw();
+		return () => {
+			isMounted = false;
+		};
+	}, [API_BASE, id]);
+
+	const categoryMap = {
+		consumer: 'Consumer Law',
+		ipc: 'Criminal / IPC',
+		labour: 'Employment Law',
+		family: 'Family / Domestic',
+		cyber: 'Cyber Crime',
+		property: 'Property / Tenancy',
+		corporate: 'Corporate / Company',
+		civil: 'Civil Law',
+	};
+
+	function formatDate(iso) {
+		try {
+			return iso ? new Date(iso).toLocaleDateString() : '';
+		} catch {
+			return iso || '';
+		}
+	}
+
 	return (
 		<div className="min-h-screen bg-gradient-subtle flex">
 			<LawyerSidebar />
@@ -20,33 +79,13 @@ export default function LawDetails() {
 								<svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
 									<path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
 								</svg>
-								Back to Laws
+								Back
 							</button>
 						</div>
-						<div className="flex items-center space-x-2">
-							<button className="border rounded px-3 py-2 flex items-center text-sm bg-primary text-primary-foreground bg-white hover:bg-gray-50">
-								<svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-									<path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-								</svg>
-								Bookmarked
-							</button>
-							<button className="border rounded px-3 py-2 flex items-center text-sm bg-white hover:bg-gray-50">
-								<svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-									<path strokeLinecap="round" strokeLinejoin="round" d="M4 4v16h16V4H4zM4 4l16 16" />
-								</svg>
-								Share
-							</button>
-							<button className="px-3 py-2 rounded text-white bg-gradient-to-r from-blue-500 to-indigo-600 flex items-center text-sm">
-								<svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-									<path strokeLinecap="round" strokeLinejoin="round" d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-									<path strokeLinecap="round" strokeLinejoin="round" d="M7 10l5 5 5-5" />
-								</svg>
-								Ask About This Law
-							</button>
-						</div>
+						<div className="flex items-center space-x-2" />
 					</div>
 
-					<div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+					<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 						{/* Main Content */}
 						<div className="lg:col-span-3">
 							<div className="shadow-lg rounded-lg bg-white mb-6 overflow-hidden">
@@ -57,15 +96,17 @@ export default function LawDetails() {
 												<path strokeLinecap="round" strokeLinejoin="round" d="M9 20l-5.447-2.724A2 2 0 013 15.382V6.618a2 2 0 011.553-1.894L9 2l6 3 5-1" />
 											</svg>
 											<div>
-												<h2 className="text-2xl">Consumer Protection Act 2023</h2>
+												<h2 className="text-2xl">{law?.title || (loading ? 'Loading…' : 'Law not found')}</h2>
 												<div className="flex items-center space-x-4 mt-2">
-													<span className="bg-white/20 text-white px-2 py-1 rounded text-sm">Consumer Law</span>
+													{law?.category ? (
+														<span className="bg-white/20 text-white px-2 py-1 rounded text-sm">{categoryMap[law.category] || law.category}</span>
+													) : null}
 													<div className="flex items-center space-x-1 text-sm">
 														<svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
 															<path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
 															<path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
 														</svg>
-														<span>1,420 views</span>
+														<span className="opacity-80">{law ? `Updated: ${formatDate(law.updated_at)}` : ''}</span>
 													</div>
 												</div>
 											</div>
@@ -73,191 +114,91 @@ export default function LawDetails() {
 									</div>
 								</div>
 								<div className="p-6">
-									<p className="text-lg text-gray-600 mb-4">
-										Comprehensive legislation protecting consumer rights and establishing fair trade practices.
-									</p>
-									<p className="text-sm text-gray-500">Last updated: 10/15/2023</p>
+									{error ? (
+										<p className="text-sm text-red-600">{error}</p>
+									) : (
+										<>
+											<p className="text-lg text-gray-600 mb-4">{law?.summary || (loading ? 'Loading details…' : 'No summary available.')}</p>
+											<p className="text-sm text-gray-500">{law ? `Last updated: ${formatDate(law.updated_at)}` : ''}</p>
+										</>
+									)}
 								</div>
 							</div>
 
 							{/* Tabs */}
 							<div>
-								<div className="grid grid-cols-4 border-b mb-4">
-									<button className="py-2 border-b-2 border-blue-500">Full Text</button>
-									<button className="py-2">Summary</button>
-									<button className="py-2">Penalties</button>
-									<button className="py-2">Related Laws</button>
+								<div className="grid grid-cols-3 border-b mb-4">
+									<button onClick={() => setActiveTab('full')} className={`py-2 ${activeTab==='full' ? 'border-b-2 border-blue-500 font-medium' : ''}`}>Full Text</button>
+									<button onClick={() => setActiveTab('penalties')} className={`py-2 ${activeTab==='penalties' ? 'border-b-2 border-blue-500 font-medium' : ''}`}>Penalties and Consequences</button>
+									<button onClick={() => setActiveTab('related')} className={`py-2 ${activeTab==='related' ? 'border-b-2 border-blue-500 font-medium' : ''}`}>Related Sections</button>
 								</div>
 
-								{/* Full Text */}
-								<div className="shadow-md rounded-lg bg-white mb-6">
-									<div className="px-6 py-3 border-b flex items-center space-x-2">
-										<svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-											<path strokeLinecap="round" strokeLinejoin="round" d="M12 20h9" />
-											<path strokeLinecap="round" strokeLinejoin="round" d="M12 4h9M12 4v16M12 4H3v16h9z" />
-										</svg>
-										<span className="font-medium">Complete Legal Text</span>
-									</div>
-									<div className="p-4 border rounded h-[600px] overflow-auto font-mono text-sm whitespace-pre-wrap">
-{`CONSUMER PROTECTION ACT 2023
-
-PART I - PRELIMINARY
-
-1. Short title and commencement
-(1) This Act may be cited as the Consumer Protection Act 2023.
-(2) This Act shall come into operation on such date as the Minister may, by notification in the Gazette, appoint.
-
-2. Interpretation
-In this Act, unless the context otherwise requires—
-"consumer" means any person who—
-(a) purchases any goods for a consideration which has been paid or promised or partly paid and partly promised, or under any system of deferred payment;
-(b) uses such goods with the approval of the person who purchases such goods for consideration paid or promised or partly paid and partly promised, or under any system of deferred payment, when such use is made with the knowledge or approval of the purchaser;
-
-3. Application
-This Act applies to all goods and services unless specifically exempted.
-
-PART II - CONSUMER RIGHTS
-
-4. Right to Safety
-Every consumer has the right to be protected against goods and services which are hazardous to life and property.
-
-5. Right to Information
-Every consumer has the right to be informed about the quality, quantity, potency, purity, standard and price of goods or services.
-
-6. Right to Choice
-Every consumer has the right to be assured access to a variety of goods and services at competitive prices.
-
-7. Right to be Heard
-Every consumer has the right to be assured that consumer interests will receive due consideration at appropriate forums.
-
-8. Right to Redress
-Every consumer has the right to seek redressal against unfair trade practices or exploitation of consumers.
-
-PART III - UNFAIR TRADE PRACTICES
-
-9. Prohibition of unfair trade practices
-No person shall engage in any unfair trade practice.
-
-10. Definition of unfair trade practice
-"Unfair trade practice" means a trade practice which, for the purpose of promoting the sale, use or supply of any goods or for the provision of any service, adopts any unfair method or unfair or deceptive practice.
-
-PART IV - CONSUMER DISPUTES REDRESSAL
-
-11. Establishment of Consumer Forums
-Consumer Forums shall be established at District, State, and National levels for the redressal of consumer disputes.
-
-12. Jurisdiction
-The jurisdiction of Consumer Forums shall be determined by the value of goods or services and the geographical area.`}
-									</div>
-								</div>
-
-								{/* Summary */}
-								<div className="shadow-md rounded-lg bg-white mb-6">
-									<div className="px-6 py-3 border-b">
-										<h3 className="font-medium">Key Points</h3>
-									</div>
-									<div className="p-4 space-y-3">
-										{[
-											'Protects consumer rights across all transactions',
-											'Establishes three-tier dispute resolution system',
-											'Defines unfair trade practices clearly',
-											'Provides for compensation and penalties',
-											'Covers both goods and services'
-										].map((text, i) => (
-											<div key={i} className="flex items-start space-x-3 p-3 rounded-lg bg-gray-100">
-												<div className="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm font-semibold">{i + 1}</div>
-												<p>{text}</p>
-											</div>
-										))}
-									</div>
-								</div>
-
-								{/* Penalties */}
-								<div className="shadow-md rounded-lg bg-white mb-6">
-									<div className="px-6 py-3 border-b">
-										<h3 className="font-medium">Penalties and Consequences</h3>
-									</div>
-									<div className="p-4 space-y-3">
-										{[
-											'Fine up to ₹10,00,000 for unfair trade practices',
-											'Imprisonment up to 2 years for repeat offenses',
-											'Compensation to affected consumers',
-											'Recall of defective products'
-										].map(p => (
-											<div key={p} className="p-4 rounded-lg border-l-4 border-red-500 bg-red-50">{p}</div>
-										))}
-									</div>
-								</div>
-
-								{/* Related Laws */}
-								<div className="shadow-md rounded-lg bg-white mb-6">
-									<div className="px-6 py-3 border-b">
-										<h3 className="font-medium">Related Laws</h3>
-									</div>
-									<div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-										{[
-											'Sale of Goods Act 1930',
-											'Contract Act 1872',
-											'Trade Marks Act 1999',
-											'Competition Act 2002'
-										].map(law => (
-											<div key={law} className="p-4 rounded-lg bg-gradient-to-r from-blue-100 to-indigo-100 cursor-pointer hover:shadow-lg transition-all">
-												<div className="flex items-center space-x-3">
-													<svg className="h-5 w-5 text-blue-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-														<path strokeLinecap="round" strokeLinejoin="round" d="M12 20h9" />
-													</svg>
-													<span>{law}</span>
-												</div>
-											</div>
-										))}
-									</div>
-								</div>
-							</div>
-						</div>
-
-						{/* Sidebar */}
-						<div className="lg:col-span-1 space-y-6">
-							<div className="shadow-md rounded-lg bg-white">
-								<div className="px-4 py-3 border-b">
-									<h3 className="text-lg font-medium">Quick Actions</h3>
-								</div>
-								<div className="p-4 space-y-2">
-									{[
-										'Generate Complaint',
-										'Find Lawyer',
-										'Ask AI Assistant'
-									].map(action => (
-										<button key={action} className="border rounded px-3 py-2 w-full text-left flex items-center bg-white hover:bg-gray-50">
-											<svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+								{/* Panels */}
+								{activeTab === 'full' && (
+									<div className="shadow-md rounded-lg bg-white mb-6">
+										<div className="px-6 py-3 border-b flex items-center space-x-2">
+											<svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
 												<path strokeLinecap="round" strokeLinejoin="round" d="M12 20h9" />
+												<path strokeLinecap="round" strokeLinejoin="round" d="M12 4h9M12 4v16M12 4H3v16h9z" />
 											</svg>
-											{action}
-										</button>
-									))}
-								</div>
-							</div>
+											<span className="font-medium">Complete Legal Text</span>
+										</div>
+										<div className="p-4 border rounded h-[600px] overflow-auto font-mono text-sm whitespace-pre-wrap">
+											{loading ? 'Loading…' : (law?.full_text || law?.summary || 'No content available for this law.')}
+										</div>
+									</div>
+								)}
 
-							<div className="shadow-md rounded-lg bg-white">
-								<div className="px-4 py-3 border-b">
-									<h3 className="text-lg font-medium">Law Information</h3>
-								</div>
-								<div className="p-4 space-y-4">
-									<div>
-										<label className="text-sm font-medium text-gray-500">Category</label>
-										<p className="text-sm">Consumer Law</p>
+								{activeTab === 'penalties' && (
+									<div className="shadow-md rounded-lg bg-white mb-6">
+										<div className="px-6 py-3 border-b flex items-center space-x-2">
+											<svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+												<path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6M7 8h10M5 4h14v16H5z" />
+											</svg>
+											<span className="font-medium">Penalties and Consequences</span>
+										</div>
+										<div className="p-4 border rounded whitespace-pre-wrap text-sm min-h-[200px]">
+											{loading ? 'Loading…' : (law?.penalties || 'No penalties information provided for this law.')}
+										</div>
 									</div>
-									<div>
-										<label className="text-sm font-medium text-gray-500">Last Updated</label>
-										<p className="text-sm">10/15/2023</p>
+								)}
+
+								{activeTab === 'related' && (
+									<div className="shadow-md rounded-lg bg-white mb-6">
+										<div className="px-6 py-3 border-b flex items-center space-x-2">
+											<svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+												<path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+											</svg>
+											<span className="font-medium">Related Sections & Metadata</span>
+										</div>
+										<div className="p-4 border rounded text-sm space-y-3">
+											{loading ? 'Loading…' : (
+												<div className="space-y-3">
+													{law?.statute_name ? (
+														<p><span className="font-medium">Statute:</span> {law.statute_name}</p>
+													) : null}
+													{law?.section_reference ? (
+														<p><span className="font-medium">Section Ref:</span> {law.section_reference}</p>
+													) : null}
+													{law?.related_sections ? (
+														<div>
+															<p className="font-medium mb-2">Related Sections</p>
+															<div className="flex flex-wrap gap-2">
+																{String(law.related_sections).split(',').map((s, i) => (
+																	<span key={i} className="px-2 py-1 bg-gray-100 rounded text-xs">{s.trim()}</span>
+																))}
+															</div>
+														</div>
+													) : <p className="text-gray-500">No related sections provided.</p>}
+												</div>
+											)}
+										</div>
 									</div>
-									<div>
-										<label className="text-sm font-medium text-gray-500">Views</label>
-										<p className="text-sm">1,420</p>
-									</div>
-								</div>
+								)}
 							</div>
 						</div>
 					</div>
+
 				</div>
 			</div>
 		</div>

@@ -2,7 +2,8 @@ from django.contrib.auth.models import User
 from django.contrib.auth.hashers import make_password, check_password
 from rest_framework import serializers
 from rest_framework.authtoken.models import Token
-from .models import Client, Lawyer, LawInfo, Complaint, LawDetail, ComplaintDraft, Appointment
+from django.db.models import Avg
+from .models import Client, Lawyer, LawInfo, Complaint, LawDetail, ComplaintDraft, Appointment, Feedback, LawList
 
 
 class LawInfoSerializer(serializers.ModelSerializer):
@@ -28,6 +29,8 @@ class ClientSerializer(serializers.ModelSerializer):
 
 class LawyerSerializer(serializers.ModelSerializer):
     full_name = serializers.SerializerMethodField(read_only=True)
+    rating = serializers.SerializerMethodField(read_only=True)
+    reviews_count = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Lawyer
@@ -36,6 +39,7 @@ class LawyerSerializer(serializers.ModelSerializer):
             'location', 'charge', 'username', 'lawyer_id', 'rating', 'reviews_count', 'languages',
             'bio', 'is_verified', 'photo_url', 'created_at', 'updated_at'
         ]
+        read_only_fields = ['rating', 'reviews_count', 'created_at', 'updated_at']
 
     def get_full_name(self, obj):
         # If model later adds first/last name, adapt this.
@@ -45,6 +49,22 @@ class LawyerSerializer(serializers.ModelSerializer):
         if value < 0:
             raise serializers.ValidationError("experience_years cannot be negative")
         return value
+
+    def get_rating(self, obj):
+        # Compute from Feedback entries linked to this lawyer
+        try:
+            agg = Feedback.objects.filter(lawyer=obj).aggregate(avg=Avg('rating'))
+            if agg and agg.get('avg') is not None:
+                return round(float(agg['avg']), 2)
+        except Exception:
+            pass
+        return float(obj.rating) if obj.rating is not None else 0.0
+
+    def get_reviews_count(self, obj):
+        try:
+            return Feedback.objects.filter(lawyer=obj).count()
+        except Exception:
+            return int(obj.reviews_count or 0)
 
 
 class ClientSignupSerializer(serializers.ModelSerializer):
@@ -125,6 +145,21 @@ class LawDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = LawDetail
         fields = '__all__'
+        # Note: includes 'penalties' TextField introduced for detailed punishments
+
+
+class LawListSerializer(serializers.ModelSerializer):
+    items = LawDetailSerializer(many=True, read_only=True)
+    item_ids = serializers.PrimaryKeyRelatedField(
+        many=True, queryset=LawDetail.objects.all(), write_only=True, required=False, source='items'
+    )
+
+    class Meta:
+        model = LawList
+        fields = [
+            'id', 'title', 'slug', 'description', 'category', 'items', 'item_ids', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['created_at', 'updated_at']
 
 class ComplaintSerializer(serializers.ModelSerializer):
     law_references = LawDetailSerializer(many=True, read_only=True)
@@ -189,3 +224,18 @@ class AppointmentSerializer(serializers.ModelSerializer):
 
     def get_lawyer_specialization(self, obj):
         return getattr(obj.lawyer, 'specialization', None) if obj.lawyer_id else None
+
+
+class FeedbackSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Feedback
+        fields = [
+            'id', 'user', 'feedback_type', 'rating', 'name', 'email', 'subject', 'message', 'lawyer',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['user', 'created_at', 'updated_at']
+
+    def validate_rating(self, value):
+        if not (1 <= int(value) <= 5):
+            raise serializers.ValidationError('Rating must be between 1 and 5')
+        return value

@@ -1,9 +1,11 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import LawyerSidebar from '../../components/LawyerSidebar';
 import { Scale, FileText, Heart, Briefcase, Home, Users } from 'lucide-react';
 
 // Static replica of provided Legal Information page (no dynamic data yet)
 export default function LawInfo() {
+	const navigate = useNavigate();
 	return (
 		<div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-200 flex">
 			{/* Sidebar */}
@@ -17,7 +19,7 @@ export default function LawInfo() {
 							<h1 className="text-3xl font-bold text-gray-900">Legal Information</h1>
 						</div>
 					</div>
-					<button className="px-4 py-2 rounded bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow">Ask AI Assistant</button>
+					{/* <button className="px-4 py-2 rounded bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow">Ask AI Assistant</button> */}
 				</div>
 
 				{/* Search Bar */}
@@ -34,12 +36,12 @@ export default function LawInfo() {
 					{/* Main Content */}
 					<div className="lg:col-span-4 grid grid-cols-1 md:grid-cols-3 gap-6">
 						{/* Card templates */}
-						<LawCategoryCard colorBg="bg-red-100 text-red-700" icon={<Scale className="h-6 w-6" />} title="Criminal Law" count="45 laws" desc="Laws dealing with crimes and punishment" tags={['Theft','Assault','Drug Offenses','+1 more']} />
-						<LawCategoryCard colorBg="bg-blue-100 text-blue-700" icon={<FileText className="h-6 w-6" />} title="Civil Law" count="32 laws" desc="Private disputes between individuals or organizations" tags={['Contract Disputes','Property Rights','Torts','+1 more']} />
-						<LawCategoryCard colorBg="bg-pink-100 text-pink-700" icon={<Heart className="h-6 w-6" />} title="Family Law" count="28 laws" desc="Legal matters involving family relationships" tags={['Divorce','Child Custody','Adoption','+1 more']} />
-						<LawCategoryCard colorBg="bg-green-100 text-green-700" icon={<Briefcase className="h-6 w-6" />} title="Employment Law" count="38 laws" desc="Rights and obligations in workplace relationships" tags={['Wrongful Termination','Discrimination','Wage Laws','+1 more']} />
-						<LawCategoryCard colorBg="bg-yellow-100 text-yellow-700" icon={<Home className="h-6 w-6" />} title="Property Law" count="41 laws" desc="Ownership and use of real estate and personal property" tags={['Real Estate','Landlord-Tenant','Property Rights','+1 more']} />
-						<LawCategoryCard colorBg="bg-purple-100 text-purple-700" icon={<Users className="h-6 w-6" />} title="Consumer Law" count="25 laws" desc="Protection of consumer rights and fair trade practices" tags={['Product Liability','False Advertising','Warranty','+1 more']} />
+						<LawCategoryCard onClick={()=>navigate('/lawyer/laws/ipc')} colorBg="bg-red-100 text-red-700" icon={<Scale className="h-6 w-6" />} title="Criminal Law" count="45 laws" desc="Laws dealing with crimes and punishment" tags={['Theft','Assault','Drug Offenses','+1 more']} />
+						<LawCategoryCard onClick={()=>navigate('/lawyer/laws/civil')} colorBg="bg-blue-100 text-blue-700" icon={<FileText className="h-6 w-6" />} title="Civil Law" count="32 laws" desc="Private disputes between individuals or organizations" tags={['Contract Disputes','Property Rights','Torts','+1 more']} />
+						<LawCategoryCard onClick={()=>navigate('/lawyer/laws/family')} colorBg="bg-pink-100 text-pink-700" icon={<Heart className="h-6 w-6" />} title="Family Law" count="28 laws" desc="Legal matters involving family relationships" tags={['Divorce','Child Custody','Adoption','+1 more']} />
+						<LawCategoryCard onClick={()=>navigate('/lawyer/laws/labour')} colorBg="bg-green-100 text-green-700" icon={<Briefcase className="h-6 w-6" />} title="Employment Law" count="38 laws" desc="Rights and obligations in workplace relationships" tags={['Wrongful Termination','Discrimination','Wage Laws','+1 more']} />
+						<LawCategoryCard onClick={()=>navigate('/lawyer/laws/property')} colorBg="bg-yellow-100 text-yellow-700" icon={<Home className="h-6 w-6" />} title="Property Law" count="41 laws" desc="Ownership and use of real estate and personal property" tags={['Real Estate','Landlord-Tenant','Property Rights','+1 more']} />
+						<LawCategoryCard onClick={()=>navigate('/lawyer/laws/consumer')} colorBg="bg-purple-100 text-purple-700" icon={<Users className="h-6 w-6" />} title="Consumer Law" count="25 laws" desc="Protection of consumer rights and fair trade practices" tags={['Product Liability','False Advertising','Warranty','+1 more']} />
 					</div>
 
 					{/* Sidebar (right) */}
@@ -74,9 +76,9 @@ export default function LawInfo() {
 	);
 }
 
-function LawCategoryCard({ colorBg, icon, title, count, desc, tags }) {
+function LawCategoryCard({ colorBg, icon, title, count, desc, tags, onClick }) {
 	return (
-		<div className="cursor-pointer hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-white to-gray-100 rounded shadow p-4">
+		<div className="cursor-pointer hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-white to-gray-100 rounded shadow p-4" onClick={onClick}>
 			<div className="flex items-center justify-between">
 				<div className={`p-3 rounded-lg ${colorBg}`}>{icon}</div>
 				<span className="bg-gray-200 text-gray-800 text-xs px-2 py-1 rounded">{count}</span>

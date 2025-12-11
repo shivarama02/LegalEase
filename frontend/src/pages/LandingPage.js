@@ -1,9 +1,11 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Scale, MessageCircle, FileText, Users, Shield, Search } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 
 export default function LandingPage() {
+	const navigate = useNavigate();
 	return (
 		<div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 text-gray-900">
 			<Navbar />
@@ -22,10 +24,16 @@ export default function LandingPage() {
 						all in one comprehensive platform designed for your legal needs.
 					</p>
 					<div className="space-x-4">
-						<button className="px-6 py-3 rounded-lg bg-gradient-to-r from-indigo-500 to-blue-500 text-white font-semibold shadow">
+						<button
+							onClick={() => navigate('/login')}
+							className="px-6 py-3 rounded-lg bg-gradient-to-r from-indigo-500 to-blue-500 text-white font-semibold shadow"
+						>
 							Get Started
 						</button>
-						<button className="px-6 py-3 rounded-lg border border-gray-300 text-gray-800 font-semibold hover:bg-gray-100">
+						<button
+							onClick={() => navigate('/laws')}
+							className="px-6 py-3 rounded-lg border border-gray-300 text-gray-800 font-semibold hover:bg-gray-100"
+						>
 							Browse Laws
 						</button>
 					</div>
@@ -91,7 +99,7 @@ export default function LandingPage() {
 					<p className="text-xl mb-8 text-white/90">
 						Join thousands of users who trust LegalAssist Pro for their legal needs.
 					</p>
-					<button className="px-6 py-3 rounded-lg bg-white text-indigo-600 font-semibold shadow">
+					<button onClick={() => navigate('/login')} className="px-6 py-3 rounded-lg bg-white text-indigo-600 font-semibold shadow">
 						Access Your Dashboard
 					</button>
 				</div>

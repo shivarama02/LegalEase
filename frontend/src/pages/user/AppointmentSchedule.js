@@ -22,6 +22,16 @@ export default function UserAppointmentSchedule() {
   const [lawyers, setLawyers] = useState([]);
   const [caseTypes, setCaseTypes] = useState([]);
 
+  // Detect same-day appointments for warning/confirmation
+  const sameDayAppts = useMemo(() => {
+    if (!form.appointment_date) return [];
+    return (appointments || []).filter(a =>
+      a.appointment_date === form.appointment_date &&
+      (editId ? a.id !== editId : true) &&
+      String(a.status || '').toLowerCase() !== 'cancelled'
+    );
+  }, [appointments, form.appointment_date, editId]);
+
   const authHeaders = () => {
     const token = localStorage.getItem('authToken');
     return token ? { Authorization: `Token ${token}` } : {};
@@ -84,6 +94,15 @@ export default function UserAppointmentSchedule() {
     try {
       setSaving(true);
       setError('');
+      // Inform user if there are existing appointments on the same date
+      if (sameDayAppts.length > 0) {
+        const times = sameDayAppts.map(a => a.appointment_time || '(time not set)').join(', ');
+        const proceed = window.confirm(`You already have ${sameDayAppts.length} appointment(s) on ${form.appointment_date} (${times}).\nDo you want to proceed anyway?`);
+        if (!proceed) {
+          setSaving(false);
+          return;
+        }
+      }
       const method = editId ? 'PUT' : 'POST';
       const url = editId ? apiUrl(`/appointments/${editId}/`) : apiUrl('/appointments/');
       const res = await fetch(url, {
@@ -190,6 +209,9 @@ export default function UserAppointmentSchedule() {
                 <div>
                   <label className="block text-sm text-gray-600 mb-1">Date</label>
                   <input type="date" value={form.appointment_date} onChange={e=>setForm(f=>({...f, appointment_date:e.target.value}))} className="w-full border rounded px-3 py-2" required />
+                  {sameDayAppts.length > 0 && (
+                    <p className="mt-1 text-xs text-amber-600">You already have {sameDayAppts.length} appointment(s) on this date.</p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm text-gray-600 mb-1">Time</label>

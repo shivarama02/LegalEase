@@ -10,7 +10,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse
 from io import BytesIO
 
-from .models import LawInfo, Client, Lawyer, Complaint, LawDetail, ComplaintDraft, Appointment
+from .models import LawInfo, Client, Lawyer, Complaint, LawDetail, ComplaintDraft, Appointment, Feedback, LawList
 from .serializers import (
     LawInfoSerializer,
     ClientSerializer,
@@ -22,6 +22,8 @@ from .serializers import (
     LawDetailSerializer,
     ComplaintDraftSerializer,
     AppointmentSerializer,
+    FeedbackSerializer,
+    LawListSerializer,
 )
 from legal_backend.gemini_client import get_gemini_response
 
@@ -106,8 +108,15 @@ class LawyerViewSet(viewsets.ModelViewSet):
 class LawDetailViewSet(viewsets.ModelViewSet):
     queryset = LawDetail.objects.all().order_by('title')
     serializer_class = LawDetailSerializer
-    filter_backends = [filters.SearchFilter]
+    filter_backends = [filters.SearchFilter, DjangoFilterBackend]
     search_fields = ['title', 'statute_name', 'section_reference', 'category']
+    filterset_fields = ['category']
+class LawListViewSet(viewsets.ModelViewSet):
+    queryset = LawList.objects.all().prefetch_related('items').order_by('title')
+    serializer_class = LawListSerializer
+    filter_backends = [filters.SearchFilter, DjangoFilterBackend]
+    search_fields = ['title', 'description', 'category']
+    filterset_fields = ['category']
 
 
 class ComplaintViewSet(viewsets.ModelViewSet):
@@ -154,6 +163,26 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         if user:
             return qs.filter(user=user)
         return qs.none()
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+
+class FeedbackViewSet(viewsets.ModelViewSet):
+    queryset = Feedback.objects.all().select_related('user', 'lawyer').order_by('-created_at')
+    serializer_class = FeedbackSerializer
+    filter_backends = [filters.SearchFilter, DjangoFilterBackend]
+    search_fields = ['name', 'email', 'subject', 'message']
+    filterset_fields = ['feedback_type', 'rating', 'lawyer']
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        user = self.request.user if self.request.user.is_authenticated else None
+        # Users see only their own feedback
+        if user and not getattr(user, 'is_staff', False):
+            return qs.filter(user=user)
+        return qs
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)

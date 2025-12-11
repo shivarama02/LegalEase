@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import UserSidebar from '../../components/UserSidebar';
 import { PencilLine, Save, Download } from 'lucide-react';
 import { apiUrl } from '../../api';
+import { COMPLAINT_TYPE_MAP } from './Complaints';
 
 export default function ComplaintPreview() {
   const location = useLocation();
@@ -35,8 +36,21 @@ export default function ComplaintPreview() {
     }
   }, [draftId, location.state]);
 
+  // Normalize type for display and requests
+  const normalizeTypeToKey = (t) => {
+    if (!t) return '';
+    if (COMPLAINT_TYPE_MAP[t]) return t; // already a key
+    const found = Object.values(COMPLAINT_TYPE_MAP).find(ct => ct.title.toLowerCase() === String(t).toLowerCase());
+    return found ? found.key : '';
+  };
+  const displayType = useMemo(() => {
+    if (!data?.complaint_type) return '';
+    const key = normalizeTypeToKey(data.complaint_type);
+    return COMPLAINT_TYPE_MAP[key]?.title || data.complaint_type || '';
+  }, [data?.complaint_type]);
+
   // Build letter body using same placeholders from provided HTML layout
-  const letter = `COMPLAINT LETTER\n\nDate: ${currentDate}\n\nTo,\nThe Consumer Forum / Appropriate Authority\n${data.respondent_address || ''}\n\nSubject: ${data.complaint_type || ''} - Complaint against ${data.respondent_name || ''}\n\nRespected Sir/Madam,\n\nI, ${data.complainant_name || ''}, resident of ${data.complainant_address || ''}, hereby file this complaint against ${data.respondent_name || ''}, located at ${data.respondent_address || ''}.\n\nDETAILS OF THE COMPLAINT:\n\n1. Type of Complaint: ${data.complaint_type || ''}\n\n2. Date of Incident: ${data.incident_date || ''}\n\n3. Location of Incident: ${data.incident_location || ''}\n\n4. Detailed Description of the Incident:\n${data.description || ''}\n\n5. Financial Loss/Damages: ${data.damages_amount || ''}\n\n6. Evidence Available:\n${data.evidence_summary || ''}\n\n7. Relief Sought:\n${data.relief_sought || ''}\n\nPRAYER:\n\nIn view of the above facts and circumstances, I humbly request this honorable forum to:\n- Take appropriate action against the respondent\n- Direct the respondent to provide the relief sought\n- Award compensation for the mental agony and harassment caused\n- Any other relief deemed fit and proper\n\nThanking you,\n\nYours faithfully,\n${data.complainant_name || ''}\nContact: ${data.complainant_phone || ''}\nEmail: ${data.complainant_email || ''}\n\n---\n\nVERIFICATION:\n\nI, ${data.complainant_name || ''}, do hereby verify that the contents of the above complaint are true and correct to the best of my knowledge.\n\nDate: ${currentDate}\nPlace: ${data.incident_location || ''}\n\nSignature: ________________\n${data.complainant_name || ''}`;
+  const letter = `COMPLAINT LETTER\n\nDate: ${currentDate}\n\nTo,\nThe Consumer Forum / Appropriate Authority\n${data.respondent_address || ''}\n\nSubject: ${displayType} - Complaint against ${data.respondent_name || ''}\n\nRespected Sir/Madam,\n\nI, ${data.complainant_name || ''}, resident of ${data.complainant_address || ''}, hereby file this complaint against ${data.respondent_name || ''}, located at ${data.respondent_address || ''}.\n\nDETAILS OF THE COMPLAINT:\n\n1. Type of Complaint: ${displayType}\n\n2. Date of Incident: ${data.incident_date || ''}\n\n3. Location of Incident: ${data.incident_location || ''}\n\n4. Detailed Description of the Incident:\n${data.description || ''}\n\n5. Financial Loss/Damages: ${data.damages_amount || ''}\n\n6. Evidence Available:\n${data.evidence_summary || ''}\n\n7. Relief Sought:\n${data.relief_sought || ''}\n\nPRAYER:\n\nIn view of the above facts and circumstances, I humbly request this honorable forum to:\n- Take appropriate action against the respondent\n- Direct the respondent to provide the relief sought\n- Award compensation for the mental agony and harassment caused\n- Any other relief deemed fit and proper\n\nThanking you,\n\nYours faithfully,\n${data.complainant_name || ''}\nContact: ${data.complainant_phone || ''}\nEmail: ${data.complainant_email || ''}\n\n---\n\nVERIFICATION:\n\nI, ${data.complainant_name || ''}, do hereby verify that the contents of the above complaint are true and correct to the best of my knowledge.\n\nDate: ${currentDate}\nPlace: ${data.incident_location || ''}\n\nSignature: ________________\n${data.complainant_name || ''}`;
 
   const handleEdit = () => navigate('/user/complaints/generator', { state: { complaint: data } });
   const handleDownload = async () => {
@@ -87,24 +101,53 @@ export default function ComplaintPreview() {
       alert('Please login before saving a complaint.');
       return;
     }
-    // Build payload restricted to serializer fields
-    const payload = {
-      complaint_type: data.complaint_type || '',
+    // Build payload restricted to serializer fields and sanitize empties
+    const normalizedType = normalizeTypeToKey(data.complaint_type);
+    const payloadRaw = {
+      complaint_type: normalizedType,
       title: data.title || (data.complaint_type ? `${data.complaint_type} Complaint` : 'Complaint'),
-      complainant_name: data.complainant_name || '',
-      complainant_phone: data.complainant_phone || '',
-      complainant_email: data.complainant_email || '',
-      complainant_address: data.complainant_address || '',
-      respondent_name: data.respondent_name || '',
-      respondent_address: data.respondent_address || '',
-      incident_date: data.incident_date || '',
-      incident_location: data.incident_location || '',
-      description: data.description || '',
-      damages_amount: data.damages_amount || '',
-      evidence_summary: data.evidence_summary || '',
-      relief_sought: data.relief_sought || '',
-      law_reference_ids: data.law_reference_ids || [],
+      complainant_name: data.complainant_name,
+      complainant_phone: data.complainant_phone,
+      complainant_email: data.complainant_email,
+      complainant_address: data.complainant_address,
+      respondent_name: data.respondent_name,
+      respondent_address: data.respondent_address,
+      incident_date: data.incident_date,
+      incident_location: data.incident_location,
+      description: data.description,
+      damages_amount: data.damages_amount,
+      evidence_summary: data.evidence_summary,
+      relief_sought: data.relief_sought,
     };
+    // Remove empty strings and undefined; coerce date/number fields
+    const payload = {};
+    for (const [k, v] of Object.entries(payloadRaw)) {
+      if (v === undefined) continue;
+      if (typeof v === 'string') {
+        const trimmed = v.trim();
+        if (trimmed === '') continue; // omit empty strings
+        payload[k] = trimmed;
+      } else if (k === 'damages_amount') {
+        const num = typeof v === 'number' ? v : parseFloat(v);
+        if (!isNaN(num)) payload[k] = num; // else omit
+      } else {
+        payload[k] = v;
+      }
+    }
+    if (payload.incident_date === '') delete payload.incident_date;
+    // Ensure required/core text fields have safe defaults to avoid DRF 400s
+    // Keep complaint_type as provided (do not force to an arbitrary value that may violate choices)
+    if (!payload.title) {
+      const disp = COMPLAINT_TYPE_MAP[normalizedType]?.title || normalizedType || 'Complaint';
+      payload.title = `${disp} Complaint`;
+    }
+    if (!payload.description) payload.description = 'No description provided';
+    if (!payload.complainant_name) payload.complainant_name = 'Unknown';
+    if (!payload.respondent_name) payload.respondent_name = 'Unknown';
+    if (!payload.incident_location) payload.incident_location = 'Unknown';
+    // Do not send a default status if backend enforces choices/read-only
+    // Debug: log payload (visible in dev tools)
+    try { console.debug('Saving complaint payload:', payload); } catch(_) {}
     try {
       const res = await fetch(apiUrl('/complaints/'), {
         method: 'POST',
@@ -115,9 +158,26 @@ export default function ComplaintPreview() {
         body: JSON.stringify(payload)
       });
       if(!res.ok){
-        let detail='';
-        try { detail = (await res.json()).detail || (await res.text()); } catch(_) {}
-        throw new Error(`Failed to save complaint (${res.status}) ${detail}`);
+        let msg = `Failed to save complaint (${res.status})`;
+        try {
+          const err = await res.json();
+          if (typeof err === 'object' && err) {
+            // Format first field error if present
+            const [field, issues] = Object.entries(err)[0] || [];
+            if (field) {
+              const issue = Array.isArray(issues) ? issues.join(', ') : String(issues);
+              msg += `: ${field} - ${issue}`;
+            } else if (err.detail) {
+              msg += `: ${err.detail}`;
+            }
+          } else {
+            const text = await res.text();
+            if (text) msg += `: ${text}`;
+          }
+        } catch(_) {
+          try { const text = await res.text(); if (text) msg += `: ${text}`; } catch(_) {}
+        }
+        throw new Error(msg);
       }
       const saved = await res.json();
       alert(`Complaint saved successfully (ID: ${saved.id}).`);

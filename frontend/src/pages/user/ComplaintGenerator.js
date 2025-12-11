@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import UserSidebar from '../../components/UserSidebar';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { COMPLAINT_TYPE_MAP } from './Complaints';
+import { COMPLAINT_TYPE_MAP, COMPLAINT_TYPES } from './Complaints';
 import {
 	ChevronLeft,
 } from 'lucide-react';
@@ -16,10 +16,16 @@ export default function ComplaintGenerator() {
     return params.get('type');
   }, [location.search]);
   const selectedMeta = queryType && COMPLAINT_TYPE_MAP[queryType] ? COMPLAINT_TYPE_MAP[queryType] : null;
+  const normalizeTypeToKey = (t) => {
+    if (!t) return '';
+    if (COMPLAINT_TYPE_MAP[t]) return t; // already a key
+    const found = Object.values(COMPLAINT_TYPE_MAP).find(ct => ct.title.toLowerCase() === String(t).toLowerCase());
+    return found ? found.key : '';
+  };
   // Minimal local state for preview (not full controlled form refactor)
   const incoming = location.state?.complaint || {};
   const [form, setForm] = useState(() => ({
-    complaint_type: incoming.complaint_type || (selectedMeta ? selectedMeta.title : ''),
+    complaint_type: normalizeTypeToKey(incoming.complaint_type) || (selectedMeta ? selectedMeta.key : ''),
     complainant_name: incoming.complainant_name || '',
     complainant_phone: incoming.complainant_phone || '',
     complainant_email: incoming.complainant_email || '',
@@ -35,29 +41,97 @@ export default function ComplaintGenerator() {
     title: incoming.title || '',
   }));
 
-  const update = (field) => (e) => setForm(prev => ({...prev, [field]: e.target.value }));
+  const [errors, setErrors] = useState({});
+
+  const validate = (values) => {
+    const e = {};
+    if (!values.complaint_type || String(values.complaint_type).trim() === '') {
+      e.complaint_type = 'Please select a complaint type.';
+    }
+    if (!values.complainant_name || String(values.complainant_name).trim() === '') {
+      e.complainant_name = 'Full name is required.';
+    }
+    if (!values.respondent_name || String(values.respondent_name).trim() === '') {
+      e.respondent_name = 'Respondent name/company is required.';
+    }
+    if (!values.description || String(values.description).trim() === '') {
+      e.description = 'Detailed description is required.';
+    }
+    return e;
+  };
+
+  const update = (field) => (e) => {
+    const value = e.target.value;
+    setForm(prev => ({ ...prev, [field]: value }));
+    // Clear field error on change
+    setErrors(prev => (prev[field] ? { ...prev, [field]: undefined } : prev));
+  };
   const handlePreview = async () => {
     const token = localStorage.getItem('authToken');
     if(!token){
       alert('Please login first to create a complaint.');
       return;
     }
+    // Client-side required validation
+    const current = { ...form };
+    const newErrors = validate(current);
+    if (Object.keys(newErrors).filter(k => newErrors[k]).length > 0) {
+      setErrors(newErrors);
+      const messages = Object.values(newErrors).filter(Boolean);
+      alert('Please fill the required fields:\n- ' + messages.join('\n- '));
+      return;
+    }
     try {
-      // Normalize payload: convert empty strings to null for nullable fields
+      // Normalize payload: ensure complaint_type is canonical key; convert empty strings to null for nullable fields
       const payload = { ...form };
+      payload.complaint_type = normalizeTypeToKey(payload.complaint_type);
+      if (!payload.complaint_type) {
+        throw new Error('Please select a valid complaint type.');
+      }
+      // Trim all string fields
+      Object.keys(payload).forEach(k => {
+        if (typeof payload[k] === 'string') payload[k] = payload[k].trim();
+      });
       payload.incident_date = payload.incident_date || null;
       if(payload.damages_amount === '' || isNaN(parseFloat(payload.damages_amount))) {
         payload.damages_amount = null;
       }
+      // Provide a safe default title if missing
+      if (!payload.title) {
+        const disp = COMPLAINT_TYPE_MAP[payload.complaint_type]?.title || payload.complaint_type || 'Complaint';
+        payload.title = `${disp} Complaint Draft`;
+      }
+      try { console.debug('Creating draft with payload:', payload); } catch(_) {}
       const res = await fetch(apiUrl('/complaint-drafts/'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Token ${token}` },
         body: JSON.stringify(payload)
       });
       if(!res.ok){
-        let detail='';
-        try { detail = (await res.json()).detail || (await res.text()); } catch(_) {}
-        throw new Error(detail || `Status ${res.status}`);
+        let msg = `Failed to create draft (${res.status})`;
+        try {
+          const bodyText = await res.text();
+          try {
+            const errJson = JSON.parse(bodyText);
+            if (errJson && typeof errJson === 'object') {
+              const entries = Object.entries(errJson);
+              if (entries.length > 0) {
+                const first = entries[0];
+                const field = first[0];
+                const issues = first[1];
+                const issueMsg = Array.isArray(issues) ? issues.join(', ') : String(issues);
+                msg += `: ${field} - ${issueMsg}`;
+              } else if (errJson.detail) {
+                msg += `: ${errJson.detail}`;
+              }
+            } else if (bodyText) {
+              msg += `: ${bodyText}`;
+            }
+          } catch(_) {
+            if (bodyText) msg += `: ${bodyText}`;
+          }
+        } catch(_) {}
+        throw new Error(msg);
       }
       const draft = await res.json();
       navigate('/user/complaints/preview', { state: { draftId: draft.id } });
@@ -119,19 +193,21 @@ export default function ComplaintGenerator() {
                   {/* Complaint Type */}
                   <div>
                     <label className="block mb-1 text-sm font-medium">Type of Complaint *</label>
-                    <select className="w-full border rounded px-3 py-2" value={form.complaint_type} onChange={update('complaint_type')}>
+                    <select
+                      className={`w-full border rounded px-3 py-2 ${errors.complaint_type ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-indigo-500'}`}
+                      value={form.complaint_type}
+                      onChange={update('complaint_type')}
+                      required
+                      aria-invalid={!!errors.complaint_type}
+                    >
                       <option value="" disabled>{selectedMeta ? 'Selected via category' : 'Select complaint type'}</option>
-                      <option>Consumer Dispute</option>
-                      <option>Property Dispute</option>
-                      <option>Employment Issue</option>
-                      <option>Service Deficiency</option>
-                      <option>Product Defect</option>
-                      <option>Unfair Trade Practice</option>
-                      <option>Insurance Claim</option>
-                      <option>Medical Negligence</option>
-                      <option>Online Fraud</option>
-                      <option>Other</option>
+                      {Object.values(COMPLAINT_TYPE_MAP).map(ct => (
+                        <option key={ct.key} value={ct.key}>{ct.title}</option>
+                      ))}
                     </select>
+                    {errors.complaint_type && (
+                      <p className="mt-1 text-xs text-red-600">{errors.complaint_type}</p>
+                    )}
                   </div>
 
                   {/* Complainant Information */}
@@ -140,7 +216,18 @@ export default function ComplaintGenerator() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="block mb-1 text-sm font-medium">Full Name *</label>
-                        <input type="text" className="w-full border rounded px-3 py-2" placeholder="Enter your full name" value={form.complainant_name} onChange={update('complainant_name')} />
+                        <input
+                          type="text"
+                          className={`w-full border rounded px-3 py-2 ${errors.complainant_name ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-indigo-500'}`}
+                          placeholder="Enter your full name"
+                          value={form.complainant_name}
+                          onChange={update('complainant_name')}
+                          required
+                          aria-invalid={!!errors.complainant_name}
+                        />
+                        {errors.complainant_name && (
+                          <p className="mt-1 text-xs text-red-600">{errors.complainant_name}</p>
+                        )}
                       </div>
                       <div>
                         <label className="block mb-1 text-sm font-medium">Phone Number</label>
@@ -162,7 +249,18 @@ export default function ComplaintGenerator() {
                     <h3 className="text-lg font-semibold">Respondent Information</h3>
                     <div>
                       <label className="block mb-1 text-sm font-medium">Name/Company *</label>
-                      <input type="text" className="w-full border rounded px-3 py-2" placeholder="Name of person/company" value={form.respondent_name} onChange={update('respondent_name')} />
+                      <input
+                        type="text"
+                        className={`w-full border rounded px-3 py-2 ${errors.respondent_name ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-indigo-500'}`}
+                        placeholder="Name of person/company"
+                        value={form.respondent_name}
+                        onChange={update('respondent_name')}
+                        required
+                        aria-invalid={!!errors.respondent_name}
+                      />
+                      {errors.respondent_name && (
+                        <p className="mt-1 text-xs text-red-600">{errors.respondent_name}</p>
+                      )}
                     </div>
                     <div>
                       <label className="block mb-1 text-sm font-medium">Address</label>
@@ -185,7 +283,18 @@ export default function ComplaintGenerator() {
                     </div>
                     <div>
                       <label className="block mb-1 text-sm font-medium">Detailed Description *</label>
-                      <textarea rows={6} className="w-full border rounded px-3 py-2" placeholder="Provide a detailed description..." value={form.description} onChange={update('description')}></textarea>
+                      <textarea
+                        rows={6}
+                        className={`w-full border rounded px-3 py-2 ${errors.description ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-indigo-500'}`}
+                        placeholder="Provide a detailed description..."
+                        value={form.description}
+                        onChange={update('description')}
+                        required
+                        aria-invalid={!!errors.description}
+                      ></textarea>
+                      {errors.description && (
+                        <p className="mt-1 text-xs text-red-600">{errors.description}</p>
+                      )}
                     </div>
                   </div>
 

@@ -14,6 +14,8 @@ from .views import (
     generate_complaint_pdf,
     AppointmentViewSet,
     list_case_types,
+    FeedbackViewSet,
+    LawListViewSet,
 )
 
 router = DefaultRouter()
@@ -24,6 +26,8 @@ router.register(r'lawdetails', LawDetailViewSet, basename='lawdetails')
 router.register(r'complaints', ComplaintViewSet, basename='complaints')
 router.register(r'complaint-drafts', ComplaintDraftViewSet, basename='complaint-drafts')
 router.register(r'appointments', AppointmentViewSet, basename='appointments')
+router.register(r'feedbacks', FeedbackViewSet, basename='feedbacks')
+router.register(r'lawlists', LawListViewSet, basename='lawlists')
 
 urlpatterns = [
     # Place specific paths BEFORE including router to avoid being captured by router detail routes

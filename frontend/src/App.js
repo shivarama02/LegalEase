@@ -8,6 +8,8 @@ import Signup from './pages/auth/Signup';
 import UserDashboard from './pages/user/Dashboard';
 import LawyerDashboard from './pages/lawyer/Dashboard';
 import LawyerLawInfo from './pages/lawyer/LawInfo';
+import LawyerLawList from './pages/lawyer/LawList';
+import LawyerLawDetails from './pages/lawyer/LawDetails';
 import AdminDashboard from './pages/admin/Dashboard';
 import LawInfoManagement from './pages/admin/LawInfoManagement';
 import LawyerManagement from './pages/admin/LawyerManagement';
@@ -18,6 +20,11 @@ import Reports from './pages/admin/Reports';
 import NotificationManagement from './pages/admin/NotificationManagement';
 import AdminSettings from './pages/admin/Settings';
 import LawInfo from './pages/user/LawInfo';
+import PublicLawInfo from './pages/LawInfo';
+import LawList from './pages/user/LawList';
+import LawDetails from './pages/user/LawDetails';
+import PublicLawList from './pages/LawList';
+import PublicLawDetails from './pages/LawDetails';
 import LawyerChatAssistant from './pages/lawyer/ChatAssistant';
 import LawyerProfile from './pages/lawyer/LawyerProfile';
 import LawyerAppoinment from './pages/lawyer/AppointmentSchedule';
@@ -49,6 +56,11 @@ function App() {
             <Route path="/signup" element={<Signup />} />
             <Route path="/user/Dashboard" element={<UserDashboard />} />
             <Route path="/user/laws" element={<LawInfo />} />
+            <Route path="/laws" element={<PublicLawInfo />} />
+            <Route path="/laws/:category" element={<PublicLawList />} />
+            <Route path="/laws/:category/:id" element={<PublicLawDetails />} />
+            <Route path="/user/laws/:category" element={<LawList />} />
+            <Route path="/user/laws/:category/:id" element={<LawDetails />} />
             <Route path="/user/complaints" element={<Complaints />} />
             <Route path="/user/complaints/generator" element={<ComplaintGenerator />} />
             <Route path="/user/complaints/preview" element={<ComplaintPreview />} />
@@ -60,7 +72,11 @@ function App() {
             <Route path="/user/feedback" element={<UserFeedback />} />
             <Route path="/user/profile" element={<UserProfile />} />
             <Route path="/lawyer/Dashboard" element={<LawyerDashboard />} />
+            {/* Lawyer law browsing (aliases for case differences) */}
             <Route path="/lawyer/Laws" element={<LawyerLawInfo />} />
+            <Route path="/lawyer/laws" element={<LawyerLawInfo />} />
+            <Route path="/lawyer/laws/:category" element={<LawyerLawList />} />
+            <Route path="/lawyer/laws/:category/:id" element={<LawyerLawDetails />} />
             <Route path="/lawyer/chat" element={<LawyerChatAssistant />} />
             <Route path="/lawyer/LawyerProfile" element={<LawyerProfile />} />
             <Route path="/lawyer/appointments" element={<LawyerAppoinment />} />
