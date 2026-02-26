@@ -1,0 +1,15 @@
+# Flutter
+build/
+.dart_tool/
+.packages
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Android
+app/build/
+.gradle/
+local.properties
+*.apk
+
+# macOS
+.DS_Store
