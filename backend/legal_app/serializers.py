@@ -3,7 +3,7 @@ from django.contrib.auth.hashers import make_password, check_password
 from rest_framework import serializers
 from rest_framework.authtoken.models import Token
 from django.db.models import Avg
-from .models import Client, Lawyer, LawInfo, Complaint, LawDetail, ComplaintDraft, Appointment, Feedback, LawList
+from .models import Client, Lawyer, LawInfo, Complaint, LawDetail, ComplaintDraft, Appointment, Feedback, LawList, ChatRoom, ChatMessage
 
 
 class LawInfoSerializer(serializers.ModelSerializer):
@@ -31,13 +31,16 @@ class LawyerSerializer(serializers.ModelSerializer):
     full_name = serializers.SerializerMethodField(read_only=True)
     rating = serializers.SerializerMethodField(read_only=True)
     reviews_count = serializers.SerializerMethodField(read_only=True)
+    # Django User ID — used by the frontend for presence tracking
+    user_id = serializers.IntegerField(source='user.id', read_only=True)
 
     class Meta:
         model = Lawyer
         fields = [
-            'id', 'full_name', 'lname', 'email', 'phone', 'specialization', 'experience_years',
-            'location', 'charge', 'username', 'lawyer_id', 'rating', 'reviews_count', 'languages',
-            'bio', 'is_verified', 'photo_url', 'created_at', 'updated_at'
+            'id', 'user_id', 'full_name', 'lname', 'email', 'phone', 'specialization',
+            'experience_years', 'location', 'charge', 'username', 'lawyer_id',
+            'rating', 'reviews_count', 'languages', 'bio', 'is_verified',
+            'photo_url', 'created_at', 'updated_at',
         ]
         read_only_fields = ['rating', 'reviews_count', 'created_at', 'updated_at']
 
@@ -239,3 +242,77 @@ class FeedbackSerializer(serializers.ModelSerializer):
         if not (1 <= int(value) <= 5):
             raise serializers.ValidationError('Rating must be between 1 and 5')
         return value
+
+
+# ──────────────────────────────────────────
+# CHAT SERIALIZERS
+# ──────────────────────────────────────────
+
+class ChatRoomSerializer(serializers.ModelSerializer):
+    # Lawyer side fields
+    lawyer_name    = serializers.CharField(source='lawyer.lname', read_only=True)
+    lawyer_id      = serializers.IntegerField(source='lawyer.id', read_only=True)
+    # Django User ID of the lawyer (needed for presence tracking on the frontend)
+    lawyer_user_id = serializers.IntegerField(source='lawyer.user.id', read_only=True)
+
+    # Client side fields
+    client_id    = serializers.IntegerField(source='client.id', read_only=True)
+    client_name  = serializers.SerializerMethodField()
+    client_email = serializers.EmailField(source='client.email', read_only=True)
+
+    class Meta:
+        model  = ChatRoom
+        fields = [
+            'id', 'status',
+            'client_id', 'client_name', 'client_email',
+            'lawyer_id', 'lawyer_user_id', 'lawyer_name',
+            'last_message', 'last_message_at',
+            'created_at',  'updated_at',
+        ]
+
+    def get_client_name(self, obj):
+        """Prefer Client profile cname, then Django full_name, then username."""
+        if hasattr(obj.client, 'client_profile') and obj.client.client_profile.cname:
+            return obj.client.client_profile.cname
+        full = obj.client.get_full_name()
+        return full or obj.client.username
+
+
+class ChatMessageSerializer(serializers.ModelSerializer):
+    sender_id   = serializers.IntegerField(source='sender.id', read_only=True)
+    sender_name = serializers.SerializerMethodField()
+    sender_role = serializers.SerializerMethodField()
+    # Convenience flag: True when the requesting user is the sender
+    is_me       = serializers.SerializerMethodField()
+
+    class Meta:
+        model  = ChatMessage
+        fields = [
+            'id', 'room',
+            'sender_id', 'sender_name', 'sender_role',
+            'message', 'is_read', 'is_me',
+            'created_at',
+        ]
+        read_only_fields = ['created_at']
+
+    def get_sender_name(self, obj):
+        u = obj.sender
+        if hasattr(u, 'lawyer_profile'):
+            return u.lawyer_profile.lname
+        if hasattr(u, 'client_profile'):
+            return u.client_profile.cname
+        return u.get_full_name() or u.username
+
+    def get_sender_role(self, obj):
+        u = obj.sender
+        if hasattr(u, 'lawyer_profile'):
+            return 'lawyer'
+        if hasattr(u, 'client_profile'):
+            return 'client'
+        return 'unknown'
+
+    def get_is_me(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return obj.sender_id == request.user.id
+        return False

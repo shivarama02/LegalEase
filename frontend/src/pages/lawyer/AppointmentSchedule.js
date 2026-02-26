@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import LawyerSidebar from '../../components/LawyerSidebar';
 import { Scale, Plus, Calendar, Clock, Check, User, Mail, Phone, MapPin, Edit } from 'lucide-react';
 import { apiUrl } from '../../api';
 
 export default function AppointmentSchedule() {
+	const navigate = useNavigate();
 	// Local state
 	const [appointments, setAppointments] = useState([]);
 	const [loading, setLoading] = useState(true);
@@ -23,7 +25,7 @@ export default function AppointmentSchedule() {
 			try {
 				setLoading(true);
 				setError('');
-				const token = localStorage.getItem('authToken');
+				const token = sessionStorage.getItem('authToken');
 				const res = await fetch(apiUrl('/appointments/'), {
 					headers: {
 						'Content-Type': 'application/json',
@@ -126,7 +128,7 @@ export default function AppointmentSchedule() {
 
 	async function updateStatus(id, newStatus) {
 		try {
-			const token = localStorage.getItem('authToken');
+			const token = sessionStorage.getItem('authToken');
 			const res = await fetch(apiUrl(`/appointments/${id}/`), {
 				method: 'PATCH',
 				headers: {
@@ -301,7 +303,13 @@ export default function AppointmentSchedule() {
 												<div className="p-4 flex items-center justify-between">
 													<h3 className="text-lg font-semibold flex items-center space-x-2">
 														<User className="h-4 w-4" />
-														<span>{a.name || 'Unknown'}</span>
+														<button
+															type="button"
+															onClick={() => navigate('/lawyer/chat', { state: { userName: a.name, userEmail: a.email } })}
+															className="hover:underline text-left"
+														>
+															{a.name || 'Unknown'}
+														</button>
 													</h3>
 													<span className={`${statusStyle} text-xs px-2 py-1 rounded uppercase`}>{status || 'scheduled'}</span>
 												</div>

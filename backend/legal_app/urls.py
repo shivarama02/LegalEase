@@ -16,6 +16,10 @@ from .views import (
     list_case_types,
     FeedbackViewSet,
     LawListViewSet,
+    create_or_get_chat_room,
+    accept_chat_request,
+    get_chat_messages,
+    get_my_chat_rooms,
 )
 
 router = DefaultRouter()
@@ -30,6 +34,10 @@ router.register(r'feedbacks', FeedbackViewSet, basename='feedbacks')
 router.register(r'lawlists', LawListViewSet, basename='lawlists')
 
 urlpatterns = [
+    path('chat/create-room/<int:lawyer_id>/', create_or_get_chat_room, name='create_chat_room'),
+    path('chat/accept/<int:room_id>/', accept_chat_request, name='accept_chat_request'),
+    path('chat/messages/<int:room_id>/', get_chat_messages, name='get_chat_messages'),
+    path('chat/my-rooms/', get_my_chat_rooms, name='get_my_chat_rooms'),
     # Place specific paths BEFORE including router to avoid being captured by router detail routes
     path('complaints/pdf/', generate_complaint_pdf, name='generate_complaint_pdf'),
     # Optional: support without trailing slash to avoid 301 on POST if APPEND_SLASH behavior varies
@@ -39,5 +47,5 @@ urlpatterns = [
     path('auth/signup/user/', ClientSignupView.as_view()),
     path('auth/signup/lawyer/', LawyerSignupView.as_view()),
     path('auth/login/', LoginView.as_view()),
-    path('chat/', chat_with_gemini, name='chat_with_gemini'),
+    path('chat/ai/', chat_with_gemini, name='chat_with_gemini'),
 ]

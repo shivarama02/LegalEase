@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import UserSidebar from '../../components/UserSidebar';
 import { apiUrl } from '../../api';
+import { requestChat } from '../../services/chatApi';
 import { ArrowLeft, ShieldCheck, Star, MapPin, Phone, Mail, Briefcase, Languages } from 'lucide-react';
 
 export default function LawyerProfileView() {
@@ -10,6 +11,7 @@ export default function LawyerProfileView() {
   const [lawyer, setLawyer] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [roomId, setRoomId] = useState(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -29,6 +31,23 @@ export default function LawyerProfileView() {
     })();
     return () => controller.abort();
   }, [id]);
+
+  useEffect(() => {
+    if (!lawyer?.id) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const room = await requestChat(lawyer.id);
+        if (cancelled) return;
+        setRoomId(room.room_id || room.id || null);
+      } catch (_) {
+        // non-fatal: chat can still be opened manually later
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [lawyer?.id]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -114,6 +133,12 @@ export default function LawyerProfileView() {
                       className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg"
                     >
                       Book Appointment
+                    </button>
+                    <button
+                      onClick={() => navigate('/user/chat', { state: { lawyerId: lawyer.id, roomId } })}
+                      className="w-full border border-indigo-300 text-indigo-700 hover:bg-indigo-50 py-2 rounded-lg"
+                    >
+                      Chat
                     </button>
                   </div>
                 </div>

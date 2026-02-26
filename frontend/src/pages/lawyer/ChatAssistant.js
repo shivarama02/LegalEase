@@ -53,7 +53,7 @@ export default function ChatAssistant() {
 		let placeholderId = Date.now() + '-a';
 		addMessage({ id: placeholderId, role: 'assistant', text: '...', ts: new Date(), pending: true });
 		try {
-			const endpoint = `${API_BASE}/chat/`;
+			const endpoint = `${API_BASE}/chat/ai/`;
 			const res = await fetch(endpoint, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
@@ -67,7 +67,7 @@ export default function ChatAssistant() {
 				const data = await res.json();
 				setMessages(prev => prev.map(m => m.id === placeholderId ? { ...m, text: data.response || data.error || 'No response', pending: false } : m));
 		} catch (e) {
-				setMessages(prev => prev.map(m => m.id === placeholderId ? { ...m, text: 'Error contacting server: ' + e.message, pending: false, error: true } : m));
+				setMessages(prev => prev.map(m => m.id === placeholderId ? { ...m, text: 'I encountered an issue connecting to the AI service. Please try again in a moment.', pending: false, error: true } : m));
 		} finally {
 			setLoading(false);
 		}
@@ -76,6 +76,58 @@ export default function ChatAssistant() {
 	function handleSubmit(e) {
 		e.preventDefault();
 		sendQuery(input);
+	}
+
+	function parseBold(text) {
+		const parts = text.split(/\*\*(.*?)\*\*/g);
+		return parts.map((part, i) => i % 2 === 1 ? <strong key={i}>{part}</strong> : part);
+	}
+
+	function renderResponse(text, isPending, isError) {
+		if (isPending) return <p className="text-sm text-gray-500 italic">Thinking...</p>;
+		const lines = (text || '').split('\n');
+		const elements = [];
+		let bulletBuffer = [];
+		let numberedBuffer = [];
+		const flushBullets = () => {
+			if (bulletBuffer.length) {
+				elements.push(<ul key={`ul-${elements.length}`} className="list-disc list-inside space-y-0.5 my-1">{bulletBuffer}</ul>);
+				bulletBuffer = [];
+			}
+		};
+		const flushNumbered = () => {
+			if (numberedBuffer.length) {
+				elements.push(<ol key={`ol-${elements.length}`} className="list-decimal list-inside space-y-0.5 my-1">{numberedBuffer}</ol>);
+				numberedBuffer = [];
+			}
+		};
+		lines.forEach((line, i) => {
+			if (line.startsWith('### ')) {
+				flushBullets(); flushNumbered();
+				elements.push(<p key={i} className="font-semibold text-sm mt-2 mb-0.5">{parseBold(line.slice(4))}</p>);
+			} else if (line.startsWith('## ')) {
+				flushBullets(); flushNumbered();
+				elements.push(<p key={i} className="font-bold text-sm mt-2 mb-0.5">{parseBold(line.slice(3))}</p>);
+			} else if (line.startsWith('# ')) {
+				flushBullets(); flushNumbered();
+				elements.push(<p key={i} className="font-bold text-base mt-2 mb-1">{parseBold(line.slice(2))}</p>);
+			} else if (/^[-*] /.test(line)) {
+				flushNumbered();
+				bulletBuffer.push(<li key={i} className="text-sm">{parseBold(line.slice(2))}</li>);
+			} else if (/^\d+\. /.test(line)) {
+				flushBullets();
+				numberedBuffer.push(<li key={i} className="text-sm">{parseBold(line.replace(/^\d+\. /, ''))}</li>);
+			} else if (line.trim() === '') {
+				flushBullets(); flushNumbered();
+				if (elements.length > 0) elements.push(<div key={i} className="h-1" />);
+			} else {
+				flushBullets(); flushNumbered();
+				elements.push(<p key={i} className="text-sm leading-relaxed">{parseBold(line)}</p>);
+			}
+		});
+		flushBullets();
+		flushNumbered();
+		return <div className="text-left space-y-0.5">{elements}</div>;
 	}
 
 	return (
@@ -111,7 +163,7 @@ export default function ChatAssistant() {
 															<Scale className="h-4 w-4 mt-1 flex-shrink-0 text-white" />
 														)}
 														<div>
-															<p className="text-sm whitespace-pre-wrap">{m.text}</p>
+															{renderResponse(m.text, m.pending, m.error)}
 															<p className="text-xs opacity-75 mt-1">{formatTime(m.ts)}</p>
 														</div>
 													</div>

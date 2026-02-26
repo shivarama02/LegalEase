@@ -25,6 +25,7 @@ import LawList from './pages/user/LawList';
 import LawDetails from './pages/user/LawDetails';
 import PublicLawList from './pages/LawList';
 import PublicLawDetails from './pages/LawDetails';
+import ChatAssistant from './pages/user/ChatAssistant';
 import LawyerChatAssistant from './pages/lawyer/ChatAssistant';
 import LawyerProfile from './pages/lawyer/LawyerProfile';
 import LawyerAppoinment from './pages/lawyer/AppointmentSchedule';
@@ -33,7 +34,7 @@ import ComplaintGenerator from './pages/user/ComplaintGenerator';
 import Complaints from './pages/user/Complaints';
 import ComplaintPreview from './pages/user/ComplaintPreview';
 import LawyerDirectory from './pages/user/LawyerDirectory';
-import ChatAssistant from './pages/user/ChatAssistant';
+import UserChat from './pages/user/UserChat';
 import Notifications from './pages/user/Notifications';
 import LawyerNotifications from './pages/lawyer/Notifications';
 import Settings from './pages/user/Settings';
@@ -41,6 +42,7 @@ import UserProfile from './pages/user/UserProfile';
 import UserAppointmentSchedule from './pages/user/AppointmentSchedule';
 import LawyerProfileView from './pages/user/LawyerProfileView';
 import UserFeedback from './pages/user/Feedback';
+import LawyerChat from './pages/lawyer/LawyerChat';
 import './App.css';
 
 function App() {
@@ -66,7 +68,8 @@ function App() {
             <Route path="/user/complaints/preview" element={<ComplaintPreview />} />
             <Route path="/user/lawyers" element={<LawyerDirectory />} />
             <Route path="/user/lawyers/:id" element={<LawyerProfileView />} />
-            <Route path="/user/chat" element={<ChatAssistant />} />
+            <Route path="/user/chat" element={<UserChat />} />
+            <Route path="/user/aichat" element={<ChatAssistant />} />
             <Route path="/user/notifications" element={<Notifications />} />
             <Route path="/user/settings" element={<Settings />} />
             <Route path="/user/feedback" element={<UserFeedback />} />
@@ -77,7 +80,8 @@ function App() {
             <Route path="/lawyer/laws" element={<LawyerLawInfo />} />
             <Route path="/lawyer/laws/:category" element={<LawyerLawList />} />
             <Route path="/lawyer/laws/:category/:id" element={<LawyerLawDetails />} />
-            <Route path="/lawyer/chat" element={<LawyerChatAssistant />} />
+            <Route path="/lawyer/chat" element={<LawyerChat />} />
+            <Route path="/lawyer/aichat" element={<LawyerChatAssistant />} />
             <Route path="/lawyer/LawyerProfile" element={<LawyerProfile />} />
             <Route path="/lawyer/appointments" element={<LawyerAppoinment />} />
             <Route path="/user/appointments" element={<UserAppointmentSchedule />} />

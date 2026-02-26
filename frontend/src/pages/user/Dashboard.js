@@ -20,7 +20,7 @@ export default function UserDashboard() {
       try {
         setLoading(true);
         setError('');
-        const token = localStorage.getItem('authToken');
+        const token = sessionStorage.getItem('authToken');
         const headers = token ? { Authorization: `Token ${token}` } : {};
 
         // Complaints for this user

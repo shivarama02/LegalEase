@@ -10,8 +10,9 @@ export default function AdminSidebar() {
 
   function handleLogout() {
     try {
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('role');
+      sessionStorage.removeItem('authToken');
+      sessionStorage.removeItem('role');
+      sessionStorage.removeItem('authUserId');
       navigate('/login');
     } catch (e) {
       navigate('/login');

@@ -45,21 +45,24 @@ export default function Login() {
       if (!res.ok) throw new Error(json.detail || 'Login failed');
       console.log('Logged in:', json);
       if (json.token) {
-        localStorage.setItem('authToken', json.token);
+        sessionStorage.setItem('authToken', json.token);
       }
       if (json.role) {
-        localStorage.setItem('role', json.role);
+        sessionStorage.setItem('role', json.role);
+      }
+      if (json.user_id != null) {
+        sessionStorage.setItem('authUserId', String(json.user_id));
       }
       // Persist username for profile lookups (especially for lawyer)
       if (role === 'Lawyer') {
         const uname = form.get('username');
         if (uname) {
-          localStorage.setItem('username', uname);
-          localStorage.setItem('lawyerUsername', uname);
+          sessionStorage.setItem('username', uname);
+          sessionStorage.setItem('lawyerUsername', uname);
         }
       } else if (role === 'User') {
         const uname = form.get('username');
-        if (uname) localStorage.setItem('username', uname);
+        if (uname) sessionStorage.setItem('username', uname);
       }
       // Redirect based on role (matching new dashboards)
       if (json.role === 'lawyer') {

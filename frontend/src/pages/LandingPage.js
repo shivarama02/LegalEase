@@ -7,11 +7,13 @@ import Footer from '../components/Footer';
 export default function LandingPage() {
 	const navigate = useNavigate();
 	return (
-		<div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 text-gray-900">
+		<div className="min-h-screen text-gray-900">
+
 			<Navbar />
 
 			{/* Hero Section */}
-			<section className="py-20 px-4 sm:px-6 lg:px-8 text-center">
+			{/* Hero Section */}
+			<section className="relative min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8 text-center overflow-hidden">
 				<div className="max-w-7xl mx-auto">
 					<h2 className="text-4xl md:text-6xl font-bold mb-6">
 						Your Complete{' '}

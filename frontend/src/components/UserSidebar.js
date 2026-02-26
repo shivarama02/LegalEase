@@ -27,9 +27,10 @@ export default function UserSidebar() {
 
   function handleLogout() {
     try {
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('role');
-      // You could also clear other cached items here if added later
+      sessionStorage.removeItem('authToken');
+      sessionStorage.removeItem('role');
+      sessionStorage.removeItem('authUserId');
+      sessionStorage.removeItem('username');
       navigate('/login');
     } catch (e) {
       console.error('Logout error:', e);
@@ -89,6 +90,10 @@ export default function UserSidebar() {
           <NavLink to="/user/chat" className={getClass}>
             <MessageCircle className="h-5 w-5" />
             <span>Chat</span>
+          </NavLink>
+          <NavLink to="/user/aichat" className={getClass}>
+            <MessageSquare className="h-5 w-5" />
+            <span>AI Chat</span>
           </NavLink>
           <NavLink to="/user/complaints" className={getClass}>
             <FileText className="h-5 w-5" />

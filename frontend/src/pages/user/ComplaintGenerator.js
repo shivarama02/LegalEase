@@ -67,7 +67,7 @@ export default function ComplaintGenerator() {
     setErrors(prev => (prev[field] ? { ...prev, [field]: undefined } : prev));
   };
   const handlePreview = async () => {
-    const token = localStorage.getItem('authToken');
+    const token = sessionStorage.getItem('authToken');
     if(!token){
       alert('Please login first to create a complaint.');
       return;

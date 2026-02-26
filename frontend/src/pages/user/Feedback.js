@@ -17,7 +17,7 @@ export default function UserFeedback() {
 	const search = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
 	const lawyerId = search ? search.get('lawyerId') : null;
 
-	const token = localStorage.getItem('token');
+	const token = sessionStorage.getItem('authToken');
 
 	const onChange = (e) => {
 		const { id, value } = e.target;

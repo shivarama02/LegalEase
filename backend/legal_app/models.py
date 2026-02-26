@@ -249,3 +249,75 @@ class Feedback(models.Model):
 
     def __str__(self):
         return f"{self.feedback_type} - {self.rating} by {self.name}"
+
+
+# ──────────────────────────────────────────
+# CHAT SYSTEM
+# ──────────────────────────────────────────
+
+class ChatRoom(models.Model):
+    """One unique room per Client (Django User) ↔ Lawyer pair.
+
+    Lifecycle:  pending → active
+      pending : user sent a chat request, waiting for lawyer to accept.
+      active  : lawyer accepted — messaging is enabled.
+    The room id is permanent (unique_together ensures one room per pair forever).
+    """
+    STATUS_PENDING = 'pending'
+    STATUS_ACTIVE  = 'active'
+    STATUS_CHOICES = [
+        (STATUS_PENDING, 'Pending'),
+        (STATUS_ACTIVE,  'Active'),
+    ]
+
+    client = models.ForeignKey(
+        User,
+        related_name='chat_rooms_as_client',
+        on_delete=models.CASCADE,
+    )
+    lawyer = models.ForeignKey(
+        'Lawyer',
+        related_name='chat_rooms_as_lawyer',
+        on_delete=models.CASCADE,
+    )
+    # Denormalised preview shown in the conversation list
+    last_message = models.TextField(blank=True, default='')
+    last_message_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    status = models.CharField(
+        max_length=10,
+        choices=STATUS_CHOICES,
+        default=STATUS_PENDING,
+        db_index=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('client', 'lawyer')
+        ordering = ['-last_message_at', '-id']
+
+    def __str__(self):
+        return f"Room {self.id}: {self.client.username} ↔ {self.lawyer.lname}"
+
+
+class ChatMessage(models.Model):
+    """Individual message inside a ChatRoom."""
+    room = models.ForeignKey(
+        ChatRoom,
+        related_name='messages',
+        on_delete=models.CASCADE,
+    )
+    sender = models.ForeignKey(
+        User,
+        related_name='sent_chat_messages',
+        on_delete=models.CASCADE,
+    )
+    message = models.TextField()
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f"Msg {self.id} in Room {self.room_id} by {self.sender.username}"

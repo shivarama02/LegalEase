@@ -30,16 +30,16 @@ export default function LawyerProfile() {
             try {
                 setLoading(true);
                 setError('');
-                const token = localStorage.getItem('authToken');
+                const token = sessionStorage.getItem('authToken');
                 const headers = token ? { Authorization: `Token ${token}` } : {};
                 // Resolve lawyer id from query or storage; fallback to username search
                 const params = new URLSearchParams(window.location.search);
                 const qpId = params.get('id');
                 const storedId = qpId
-                    || localStorage.getItem('lawyer_id')
-                    || localStorage.getItem('lawyerId')
-                    || localStorage.getItem('lawyerID');
-                const storedUsername = localStorage.getItem('lawyerUsername') || localStorage.getItem('username');
+                    || sessionStorage.getItem('lawyer_id')
+                    || sessionStorage.getItem('lawyerId')
+                    || sessionStorage.getItem('lawyerID');
+                const storedUsername = sessionStorage.getItem('lawyerUsername') || sessionStorage.getItem('username');
                 let lawyerData = null;
                 if (storedId) {
                     const res = await fetch(apiUrl(`/lawyers/${storedId}/`), { headers });
@@ -107,7 +107,7 @@ export default function LawyerProfile() {
         try {
             setLoading(true);
             setError('');
-            const token = localStorage.getItem('authToken');
+            const token = sessionStorage.getItem('authToken');
             const headers = {
                 'Content-Type': 'application/json',
                 ...(token ? { Authorization: `Token ${token}` } : {}),

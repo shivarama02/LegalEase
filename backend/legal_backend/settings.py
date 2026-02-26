@@ -37,8 +37,10 @@ ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',') if os.getenv('ALLOWED_
 
 INSTALLED_APPS = [
     'corsheaders',
+    'daphne',
     'rest_framework',
     'rest_framework.authtoken',
+    'channels',
     'legal_app',
     'django.contrib.admin',
     'django.contrib.auth',
@@ -77,6 +79,8 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'legal_backend.wsgi.application'
+ASGI_APPLICATION = 'legal_backend.asgi.application'
+
 
 
 # Database
@@ -144,3 +148,13 @@ REST_FRAMEWORK = {
 
 # CORS (development permissive)
 CORS_ALLOW_ALL_ORIGINS = True
+
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("127.0.0.1", 6379)],
+        },
+    },
+}

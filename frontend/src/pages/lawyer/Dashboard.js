@@ -17,17 +17,17 @@ export default function LawyerDashboard() {
       try {
         setLoading(true);
         setError('');
-        const token = localStorage.getItem('authToken');
+        const token = sessionStorage.getItem('authToken');
         const headers = token ? { Authorization: `Token ${token}` } : {};
 
         // 1) Resolve current lawyer profile (id, rating, etc.)
         const qp = new URLSearchParams(window.location.search);
         const qpId = qp.get('id');
         const storedId = qpId
-          || localStorage.getItem('lawyer_id')
-          || localStorage.getItem('lawyerId')
-          || localStorage.getItem('lawyerID');
-        const storedUsername = localStorage.getItem('lawyerUsername') || localStorage.getItem('username');
+          || sessionStorage.getItem('lawyer_id')
+          || sessionStorage.getItem('lawyerId')
+          || sessionStorage.getItem('lawyerID');
+        const storedUsername = sessionStorage.getItem('lawyerUsername') || sessionStorage.getItem('username');
 
         async function fetchLawyerById(id) {
           const res = await fetch(apiUrl(`/lawyers/${id}/`), { headers });

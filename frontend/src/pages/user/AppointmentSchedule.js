@@ -33,7 +33,7 @@ export default function UserAppointmentSchedule() {
   }, [appointments, form.appointment_date, editId]);
 
   const authHeaders = () => {
-    const token = localStorage.getItem('authToken');
+    const token = sessionStorage.getItem('authToken');
     return token ? { Authorization: `Token ${token}` } : {};
   };
 

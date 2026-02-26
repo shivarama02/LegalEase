@@ -2,6 +2,7 @@ from rest_framework import viewsets, filters, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
+from django.contrib.auth.models import User
 from django_filters.rest_framework import DjangoFilterBackend
 from django.contrib.auth import authenticate
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
@@ -10,7 +11,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse
 from io import BytesIO
 
-from .models import LawInfo, Client, Lawyer, Complaint, LawDetail, ComplaintDraft, Appointment, Feedback, LawList
+from .models import LawInfo, Client, Lawyer, Complaint, LawDetail, ComplaintDraft, Appointment, Feedback, LawList, ChatRoom, ChatMessage
 from .serializers import (
     LawInfoSerializer,
     ClientSerializer,
@@ -24,8 +25,30 @@ from .serializers import (
     AppointmentSerializer,
     FeedbackSerializer,
     LawListSerializer,
+    ChatRoomSerializer,
+    ChatMessageSerializer,
 )
-from legal_backend.gemini_client import get_gemini_response
+from legal_backend.openrouter_client import get_gemini_response   # switched from gemini_client
+
+
+def _ensure_all_rooms(user):
+    """
+    Idempotently create a ChatRoom for every (client_user, lawyer) pair
+    that involves this user.  Called on signup and login so the frontend
+    never has to manually create rooms.
+    """
+    if hasattr(user, 'lawyer_profile'):
+        # Lawyer logging in / signing up → pair with every client user
+        lawyer = user.lawyer_profile
+        client_users = User.objects.filter(
+            client_profile__isnull=False
+        ).exclude(id=user.id)
+        for cu in client_users:
+            ChatRoom.objects.get_or_create(client=cu, lawyer=lawyer)
+    else:
+        # Client user logging in / signing up → pair with every lawyer
+        for lawyer in Lawyer.objects.select_related('user').all():
+            ChatRoom.objects.get_or_create(client=user, lawyer=lawyer)
 
 
 class LawInfoViewSet(viewsets.ModelViewSet):
@@ -221,7 +244,7 @@ class LoginView(APIView):
         role = 'user'
         if hasattr(user, 'lawyer_profile'):
             role = 'lawyer'
-        return Response({'token': token.key, 'role': role}, status=200)
+        return Response({'token': token.key, 'role': role, 'user_id': user.id}, status=200)
 
 
 @api_view(["POST"])
@@ -338,3 +361,122 @@ def list_case_types(request):
         for key, label in case_map.items()
     ]
     return Response(items)
+
+
+# ──────────────────────────────────────────
+# CHAT REST APIs
+# ──────────────────────────────────────────
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_or_get_chat_room(request, lawyer_id):
+    """
+    Client sends a chat request to a lawyer.
+    - Creates the room with status='pending' if it doesn't exist yet.
+    - If the room already exists (in any state), returns it as-is.
+    - Only clients can call this endpoint.
+    """
+    actor = request.user
+
+    if hasattr(actor, 'lawyer_profile'):
+        return Response(
+            {"error": "Lawyers cannot send chat requests. Clients initiate chats."},
+            status=403,
+        )
+
+    try:
+        lawyer = Lawyer.objects.get(id=lawyer_id)
+    except Lawyer.DoesNotExist:
+        return Response({"error": "Lawyer not found"}, status=404)
+
+    room, created = ChatRoom.objects.get_or_create(
+        client=actor,
+        lawyer=lawyer,
+        defaults={'status': ChatRoom.STATUS_PENDING},
+    )
+    serializer = ChatRoomSerializer(room)
+    return Response(serializer.data, status=201 if created else 200)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def accept_chat_request(request, room_id):
+    """
+    Lawyer accepts a pending chat request — sets room status to 'active'.
+    Only the lawyer of that specific room can call this.
+    """
+    user = request.user
+
+    if not hasattr(user, 'lawyer_profile'):
+        return Response({"error": "Only lawyers can accept chat requests."}, status=403)
+
+    try:
+        room = ChatRoom.objects.select_related('lawyer', 'lawyer__user').get(
+            id=room_id, lawyer=user.lawyer_profile
+        )
+    except ChatRoom.DoesNotExist:
+        return Response({"error": "Room not found or not yours."}, status=404)
+
+    if room.status == ChatRoom.STATUS_ACTIVE:
+        return Response(ChatRoomSerializer(room).data)  # already active, idempotent
+
+    room.status = ChatRoom.STATUS_ACTIVE
+    room.save(update_fields=['status', 'updated_at'])
+    return Response(ChatRoomSerializer(room).data)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_chat_messages(request, room_id):
+    """
+    Returns the message history for a given room.
+    Only the client and the lawyer of that room can access it.
+    """
+    user = request.user
+
+    try:
+        room = ChatRoom.objects.select_related('client', 'lawyer', 'lawyer__user').get(id=room_id)
+    except ChatRoom.DoesNotExist:
+        return Response({"error": "Room not found"}, status=404)
+
+    # Access control
+    lawyer_user = getattr(room.lawyer, 'user', None)
+    if room.client != user and lawyer_user != user:
+        return Response({"error": "Unauthorized"}, status=403)
+
+    messages = room.messages.select_related(
+        'sender', 'sender__client_profile', 'sender__lawyer_profile'
+    ).all()
+    serializer = ChatMessageSerializer(messages, many=True, context={'request': request})
+    return Response(serializer.data)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_my_chat_rooms(request):
+    """
+    Returns all chat rooms for the logged-in user.
+    Lawyers get rooms where they are the lawyer.
+    Clients get rooms where they are the client.
+    """
+    user = request.user
+
+    if hasattr(user, 'lawyer_profile'):
+        rooms = ChatRoom.objects.filter(
+            lawyer=user.lawyer_profile
+        ).select_related(
+            'client', 'client__client_profile',
+            'lawyer', 'lawyer__user',
+        ).order_by('-last_message_at', '-id')
+    else:
+        rooms = ChatRoom.objects.filter(
+            client=user
+        ).select_related(
+            'client', 'client__client_profile',
+            'lawyer', 'lawyer__user',
+        ).order_by('-last_message_at', '-id')
+
+    serializer = ChatRoomSerializer(rooms, many=True)
+    return Response(serializer.data)
+
+

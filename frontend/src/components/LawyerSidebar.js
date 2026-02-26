@@ -4,6 +4,7 @@ import {
   Scale,
   BarChart3,
   MessageCircle,
+  MessageSquare,
   Bell,
   User as UserIcon,
   LogOut,
@@ -23,8 +24,11 @@ export default function LawyerSidebar() {
 
   function handleLogout() {
     try {
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('role');
+      sessionStorage.removeItem('authToken');
+      sessionStorage.removeItem('role');
+      sessionStorage.removeItem('authUserId');
+      sessionStorage.removeItem('username');
+      sessionStorage.removeItem('lawyerUsername');
       navigate('/login');
     } catch (e) {
       console.error('Logout error:', e);
@@ -84,6 +88,10 @@ export default function LawyerSidebar() {
             <NavLink to="/lawyer/chat" className={getClass}>
               <MessageCircle className="h-5 w-5" />
               <span>Chat</span>
+            </NavLink>
+            <NavLink to="/lawyer/aichat" className={getClass}>
+              <MessageSquare className="h-5 w-5" />
+              <span>AI Chat</span>
             </NavLink>
             {/* <NavLink to="/lawyer/profile-management" className={getClass}>
               <FileText className="h-5 w-5" />

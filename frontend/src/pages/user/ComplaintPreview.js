@@ -14,7 +14,7 @@ export default function ComplaintPreview() {
   const currentDate = useMemo(() => new Date().toLocaleDateString(), []);
 
   useEffect(() => {
-    const token = localStorage.getItem('authToken');
+    const token = sessionStorage.getItem('authToken');
     if(draftId && !location.state?.complaint){
       if(!token){
         alert('Login required');
@@ -56,7 +56,7 @@ export default function ComplaintPreview() {
   const handleDownload = async () => {
     try {
       const payload = { ...data, current_date: currentDate };
-      const token = localStorage.getItem('authToken');
+      const token = sessionStorage.getItem('authToken');
       const res = await fetch(apiUrl('/complaints/pdf/'), {
         method: 'POST',
         headers: {
@@ -96,7 +96,7 @@ export default function ComplaintPreview() {
     }
   };
   const handleSave = async () => {
-    const token = localStorage.getItem('authToken');
+    const token = sessionStorage.getItem('authToken');
     if(!token){
       alert('Please login before saving a complaint.');
       return;

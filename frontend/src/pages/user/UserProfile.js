@@ -32,7 +32,7 @@ export default function UserProfile() {
       try {
         setLoading(true);
         setError('');
-        const token = localStorage.getItem('authToken');
+        const token = sessionStorage.getItem('authToken');
         const headers = token ? { Authorization: `Token ${token}` } : {};
         const res = await fetch(apiUrl('/clients/'), { headers });
         if (!res.ok) {
@@ -74,7 +74,7 @@ export default function UserProfile() {
     try {
       setLoading(true);
       setError('');
-      const token = localStorage.getItem('authToken');
+      const token = sessionStorage.getItem('authToken');
       const headers = {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Token ${token}` } : {}),
