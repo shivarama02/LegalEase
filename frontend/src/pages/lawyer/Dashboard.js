@@ -1,14 +1,21 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import LawyerSidebar from '../../components/LawyerSidebar';
 import { apiUrl } from '../../api';
+import {
+  Scale, FileText, Users, MessageCircle, Clock, CheckCircle, AlertCircle,
+  ArrowRight, Calendar, BookOpen, Briefcase, ChevronRight, Sparkles, Star,
+} from 'lucide-react';
 
 export default function LawyerDashboard() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [lawyer, setLawyer] = useState(null);
   const [complaints, setComplaints] = useState([]);
   const [appointments, setAppointments] = useState([]);
-  const [activeSection, setActiveSection] = useState('recent'); // 'recent' | 'upcoming'
+
+  const username = sessionStorage.getItem('lawyerUsername') || sessionStorage.getItem('username') || 'Lawyer';
 
   // Resolve and load data
   useEffect(() => {
@@ -121,175 +128,167 @@ export default function LawyerDashboard() {
       .slice(0, 5);
   }, [appointments, todayStr]);
 
+  const formatDate = (d) => { try { return new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }); } catch { return d || ''; } };
+
+  const STATS = [
+    { icon: Calendar, label: 'Active Today', value: activeAppointments, bg: 'bg-indigo-50', text: 'text-indigo-600', link: '/lawyer/appointments' },
+    { icon: Clock, label: 'Pending Requests', value: pendingRequests, bg: 'bg-amber-50', text: 'text-amber-600', link: '/lawyer/appointments' },
+    { icon: CheckCircle, label: 'Completed', value: completedAppointments, bg: 'bg-emerald-50', text: 'text-emerald-600', link: '/lawyer/appointments' },
+    { icon: Users, label: 'Total Appointments', value: appointments.length, bg: 'bg-violet-50', text: 'text-violet-600', link: '/lawyer/appointments' },
+  ];
+
+  const QUICK_ACTIONS = [
+    { icon: MessageCircle, title: 'Client Chat', desc: 'Respond to client messages', color: 'from-indigo-500 to-violet-600', path: '/lawyer/chat' },
+    { icon: Sparkles, title: 'AI Legal Assistant', desc: 'Research with AI help', color: 'from-violet-500 to-purple-600', path: '/lawyer/aichat' },
+    { icon: Scale, title: 'Browse Laws', desc: 'Explore legal database', color: 'from-blue-500 to-cyan-600', path: '/lawyer/laws' },
+    { icon: Calendar, title: 'Appointments', desc: 'Manage your schedule', color: 'from-emerald-500 to-green-600', path: '/lawyer/appointments' },
+    { icon: Star, title: 'Feedback', desc: 'View client reviews', color: 'from-amber-500 to-orange-500', path: '/lawyer/lawyerfeedback' },
+    { icon: Briefcase, title: 'My Profile', desc: 'Update your profile', color: 'from-rose-500 to-pink-600', path: '/lawyer/LawyerProfile' },
+  ];
+
+  const getStatusBadge = (status) => {
+    const s = (status || '').toLowerCase();
+    const map = {
+      completed: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+      scheduled: 'bg-blue-50 text-blue-700 border-blue-200',
+      pending: 'bg-amber-50 text-amber-700 border-amber-200',
+      cancelled: 'bg-red-50 text-red-700 border-red-200',
+    };
+    return map[s] || 'bg-slate-50 text-slate-600 border-slate-200';
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="flex min-h-screen">
-        {/* Sidebar replaced with shared LawyerSidebar component */}
-        <LawyerSidebar />
-
-        {/* Main Content */}
-        <div className="flex-1 p-6">
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-            {error && <p className="text-red-600 mt-2">{error}</p>}
+    <div className="min-h-screen flex bg-slate-50">
+      <LawyerSidebar />
+      <div className="flex-1 overflow-y-auto">
+        {/* Top gradient banner */}
+        <div className="relative bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 px-6 md:px-10 pt-10 pb-28">
+          <div className="absolute inset-0 overflow-hidden">
+            <div className="absolute -top-20 -right-20 w-72 h-72 bg-white/10 rounded-full blur-3xl" />
+            <div className="absolute -bottom-20 -left-10 w-64 h-64 bg-white/5 rounded-full blur-3xl" />
           </div>
-
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-            {/* Active Appointments */}
-            <div className="bg-white p-4 rounded-lg shadow border">
-              <div className="flex justify-between items-center">
-                <h3 className="text-sm font-medium">Active Appointments</h3>
-                <span className="text-gray-400">📅</span>
+          <div className="relative max-w-7xl mx-auto">
+            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+              <div>
+                <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight text-left">
+                  Welcome back, <span className="text-indigo-200">{username}</span>!
+                </h1>
+                <p className="text-indigo-200/80 text-sm mt-1.5">We're glad to have you here. Manage your clients, appointments, and legal resources — all in one place.</p>
               </div>
-              <p className="text-2xl font-bold">{activeAppointments}</p>
-              <p className="text-xs text-gray-500">Scheduled for today</p>
+              <button onClick={() => navigate('/lawyer/aichat')} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 backdrop-blur-sm border border-white/20 text-white text-sm font-semibold transition">
+                <Sparkles size={16} /> AI Legal Research
+              </button>
             </div>
-
-            {/* Pending Requests */}
-            <div className="bg-white p-4 rounded-lg shadow border">
-              <div className="flex justify-between items-center">
-                <h3 className="text-sm font-medium">Pending Requests</h3>
-                <span className="text-gray-400">⏳</span>
-              </div>
-              <p className="text-2xl font-bold">{pendingRequests}</p>
-              <p className="text-xs text-gray-500">Submitted/Reviewing</p>
-            </div>
-          {/* Stats Cards */}
-            {/* Completed Appointments */}
-            <div className="bg-white p-4 rounded-lg shadow border">
-              <div className="flex justify-between items-center">
-                <h3 className="text-sm font-medium">Completed Appointments</h3>
-                <span className="text-gray-400">✅</span>
-              </div>
-              <p className="text-2xl font-bold">{completedAppointments}</p>
-              <p className="text-xs text-gray-500">All time (visible scope)</p>
-            </div>
-
-            {/* Average Rating */}
-            {/* <div className="bg-white p-4 rounded-lg shadow border">
-              <div className="flex justify-between items-center">
-                <h3 className="text-sm font-medium">Average Rating</h3>
-                <span className="text-gray-400">⭐</span>
-              </div>
-              <p className="text-2xl font-bold">{Number(averageRating).toFixed(1)}</p>
-              <p className="text-xs text-gray-500">Based on {reviewsCount} reviews</p>
-            </div> */}
-
-            {/* This Month Earnings */}
-            {/* <div className="bg-white p-4 rounded-lg shadow border">
-              <div className="flex justify-between items-center">
-                <h3 className="text-sm font-medium">This Month</h3>
-                <span className="text-gray-400">📈</span>
-              </div>
-              <p className="text-2xl font-bold">$0</p>
-              <p className="text-xs text-gray-500">(earnings not tracked)</p>
-            </div> */}
-
-            {/* Total Earnings */}
-            {/* <div className="bg-white p-4 rounded-lg shadow border">
-              <div className="flex justify-between items-center">
-                <h3 className="text-sm font-medium">Total Earnings</h3>
-                <span className="text-gray-400">💰</span>
-              </div>
-              <p className="text-2xl font-bold">$0</p>
-              <p className="text-xs text-gray-500">(not tracked)</p>
-            </div>*/} 
           </div>
+        </div>
 
-          {/* Tabs */}
-          <div>
-            <div className="flex space-x-4 border-b mb-4">
-              <button
-                onClick={()=>setActiveSection('recent')}
-                className={`px-4 py-2 ${activeSection==='recent' ? 'border-b-2 border-blue-500 text-blue-600 font-medium' : 'text-gray-600 hover:text-blue-600'}`}
-              >
-                Recent Appointments
-              </button>
-              <button
-                onClick={()=>setActiveSection('upcoming')}
-                className={`px-4 py-2 ${activeSection==='upcoming' ? 'border-b-2 border-blue-500 text-blue-600 font-medium' : 'text-gray-600 hover:text-blue-600'}`}
-              >
-                Upcoming Appointments
-              </button>
-              {/* <button className="px-4 py-2 text-gray-600 hover:text-blue-600">Analytics</button> */}
-            </div>
+        {/* Main content overlaps banner */}
+        <div className="relative -mt-20 px-6 md:px-10 pb-10">
+          <div className="max-w-7xl mx-auto space-y-6">
+            {error && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3">{error}</div>}
 
-            {activeSection === 'recent' ? (
-              <div className="bg-white rounded-lg shadow p-4 mb-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="font-bold">Recent Appointments</h3>
-                </div>
-                <div className="space-y-4">
-                  {recentAppointments.map(a => (
-                    <div key={a.id} className="flex justify-between p-4 border rounded-lg">
-                      <div>
-                        <p className="font-medium">{a.name || 'Client'}</p>
-                        <p className="text-sm text-gray-500">{a.case_type || 'Consultation'}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-medium">{(a.appointment_time || '').slice(0,5)}</p>
-                        <p className="text-sm text-gray-500">{a.appointment_date}</p>
-                        <span className={`inline-block mt-2 px-2 py-1 text-xs rounded-full ${
-                          (a.status || '').toLowerCase() === 'completed' ? 'bg-green-100 text-green-800' :
-                          (a.status || '').toLowerCase() === 'scheduled' ? 'bg-blue-100 text-blue-800' :
-                          'bg-gray-100 text-gray-700'
-                        }`}>
-                          {String(a.status || '').replace(/\b\w/g, s => s.toUpperCase())}
-                        </span>
-                      </div>
+            {/* Stat Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {STATS.map((s) => {
+                const Icon = s.icon;
+                return (
+                  <div key={s.label} onClick={() => navigate(s.link)} className="group bg-white rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md hover:border-indigo-200 p-5 cursor-pointer transition-all">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className={`w-11 h-11 rounded-xl ${s.bg} flex items-center justify-center`}><Icon size={20} className={s.text} /></div>
+                      <ChevronRight size={16} className="text-slate-300 group-hover:text-indigo-400 transition" />
                     </div>
-                  ))}
-                  {recentAppointments.length === 0 && (
-                    <div className="text-sm text-gray-500">No recent appointments found.</div>
+                    <p className="text-3xl font-extrabold text-slate-900">{loading ? '–' : s.value}</p>
+                    <p className="text-sm text-slate-500 font-medium mt-0.5">{s.label}</p>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Quick Actions */}
+            <div>
+              <h2 className="text-lg font-bold text-slate-900 mb-4">Quick Actions</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {QUICK_ACTIONS.map((a) => {
+                  const Icon = a.icon;
+                  return (
+                    <button key={a.title} onClick={() => navigate(a.path)} className="group flex items-center gap-4 bg-white rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md hover:border-indigo-200 p-5 text-left transition-all">
+                      <div className={`shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br ${a.color} flex items-center justify-center shadow-sm`}><Icon size={20} className="text-white" /></div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-slate-800 group-hover:text-indigo-700 transition-colors">{a.title}</p>
+                        <p className="text-xs text-slate-500 mt-0.5">{a.desc}</p>
+                      </div>
+                      <ArrowRight size={16} className="text-slate-300 group-hover:text-indigo-400 shrink-0 transition" />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Appointments — two columns */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Recent Appointments */}
+              <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-100">
+                  <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2"><Clock size={18} className="text-indigo-500" /> Recent Appointments</h2>
+                  <p className="text-xs text-slate-500 mt-0.5">Your latest client appointments</p>
+                </div>
+                <div className="divide-y divide-slate-50">
+                  {loading ? (
+                    <div className="px-6 py-10 text-center text-sm text-slate-400">Loading…</div>
+                  ) : recentAppointments.length === 0 ? (
+                    <div className="px-6 py-10 text-center">
+                      <Calendar size={28} className="mx-auto text-slate-300 mb-2" />
+                      <p className="text-sm text-slate-500">No recent appointments.</p>
+                    </div>
+                  ) : (
+                    recentAppointments.map((a) => (
+                      <div key={a.id} className="flex items-center gap-4 px-6 py-3.5 hover:bg-slate-50/60 transition">
+                        <div className="shrink-0 w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center">
+                          <Calendar size={16} className="text-indigo-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-slate-800 truncate">{a.name || 'Client'} — {a.case_type || 'Consultation'}</p>
+                          <p className="text-xs text-slate-400 mt-0.5">{formatDate(a.appointment_date)} at {(a.appointment_time || '').slice(0, 5)}</p>
+                        </div>
+                        <span className={`shrink-0 px-2.5 py-1 text-[11px] font-semibold rounded-lg border capitalize ${getStatusBadge(a.status)}`}>{a.status || 'unknown'}</span>
+                      </div>
+                    ))
                   )}
                 </div>
               </div>
-            ) : (
-              <div className="bg-white rounded-lg shadow p-4 mb-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="font-bold">Upcoming Appointments</h3>
+
+              {/* Upcoming Appointments */}
+              <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-100">
+                  <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2"><ArrowRight size={18} className="text-emerald-500" /> Upcoming</h2>
+                  <p className="text-xs text-slate-500 mt-0.5">Scheduled appointments ahead</p>
                 </div>
-                <div className="space-y-4">
-                  {upcomingAppointments.map(a => (
-                    <div key={a.id} className="flex justify-between p-4 border rounded-lg">
-                      <div>
-                        <p className="font-medium">{a.name || 'Client'}</p>
-                        <p className="text-sm text-gray-500">{a.case_type || 'Consultation'}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-medium">{(a.appointment_time || '').slice(0,5)}</p>
-                        <p className="text-sm text-gray-500">{a.appointment_date}</p>
-                      </div>
+                <div className="divide-y divide-slate-50">
+                  {loading ? (
+                    <div className="px-6 py-10 text-center text-sm text-slate-400">Loading…</div>
+                  ) : upcomingAppointments.length === 0 ? (
+                    <div className="px-6 py-10 text-center">
+                      <CheckCircle size={28} className="mx-auto text-slate-300 mb-2" />
+                      <p className="text-sm text-slate-500">No upcoming appointments.</p>
                     </div>
-                  ))}
-                  {upcomingAppointments.length === 0 && (
-                    <div className="text-sm text-gray-500">No upcoming appointments found.</div>
+                  ) : (
+                    upcomingAppointments.map((a) => (
+                      <div key={a.id} className="flex items-center gap-4 px-6 py-3.5 hover:bg-slate-50/60 transition">
+                        <div className="shrink-0 w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center">
+                          <Calendar size={16} className="text-emerald-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-slate-800 truncate">{a.name || 'Client'} — {a.case_type || 'Consultation'}</p>
+                          <p className="text-xs text-slate-400 mt-0.5">{formatDate(a.appointment_date)} at {(a.appointment_time || '').slice(0, 5)}</p>
+                        </div>
+                        <span className="shrink-0 px-2.5 py-1 text-[11px] font-semibold rounded-lg border capitalize bg-blue-50 text-blue-700 border-blue-200">Scheduled</span>
+                      </div>
+                    ))
                   )}
                 </div>
               </div>
-            )}
+            </div>
 
-            {/* Analytics */}
-            {/* <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-white p-4 rounded-lg shadow">
-                <h3 className="font-bold mb-4">Monthly Performance</h3>
-                <div className="space-y-2">
-                  <div className="flex justify-between"><span>Cases Closed</span><span className="font-bold">23</span></div>
-                  <div className="flex justify-between"><span>Success Rate</span><span className="font-bold text-green-600">94%</span></div>
-                  <div className="flex justify-between"><span>Client Satisfaction</span><span className="font-bold">4.8/5</span></div>
-                </div>
-              </div>
-
-              <div className="bg-white p-4 rounded-lg shadow">
-                <h3 className="font-bold mb-4">Practice Areas</h3>
-                <div className="space-y-2">
-                  <div className="flex justify-between"><span>Criminal Law</span><span className="font-bold">60%</span></div>
-                  <div className="flex justify-between"><span>Civil Rights</span><span className="font-bold">25%</span></div>
-                  <div className="flex justify-between"><span>Family Law</span><span className="font-bold">15%</span></div>
-                </div>
-              </div>
-            </div> */}
           </div>
         </div>
       </div>

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import { Search, MessageSquare, RefreshCw, CheckCircle, Clock } from "lucide-react";
+import { Search, MessageSquare, RefreshCw, CheckCircle, Clock, Scale, Users, ChevronRight, Loader2 } from "lucide-react";
 import ChatWindow from "../../components/ChatWindow";
 import { getMyRooms, acceptChat } from "../../services/chatApi";
 import LawyerSidebar from '../../components/LawyerSidebar';
@@ -128,47 +128,47 @@ export default function LawyerChat() {
 
   const RoomRow = ({ room, isPending }) => {
     const clientOnline = onlineUsers.has(String(room.client_id));
+    const active = selectedRoom?.id === room.id;
     return (
       <button
         key={room.id}
         onClick={() => setSelectedRoom(room)}
-        className={`
-          w-full flex items-center gap-3 px-4 py-3 border-b border-gray-100
-          hover:bg-gray-100 transition text-left
-          ${selectedRoom?.id === room.id ? "bg-teal-50 border-l-4 border-l-teal-500" : ""}
-        `}
+        className={`w-full flex items-center gap-3 px-4 py-3 border-b border-slate-100 transition text-left
+          ${active
+            ? isPending ? "bg-amber-50" : "bg-indigo-50"
+            : "hover:bg-slate-50"}`}
       >
         <div className="relative flex-shrink-0">
-          <div className="w-11 h-11 rounded-full bg-indigo-100 flex items-center justify-center
-                          font-bold text-indigo-700 text-sm select-none">
+          <div className={`w-11 h-11 rounded-2xl flex items-center justify-center font-bold text-sm select-none
+            ${active
+              ? isPending ? "bg-amber-500 text-white" : "bg-indigo-600 text-white"
+              : isPending ? "bg-amber-100 text-amber-600" : "bg-indigo-100 text-indigo-700"}`}>
             {(room.client_name || room.client_email || "C").charAt(0).toUpperCase()}
           </div>
           {isPending ? (
-            <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white bg-orange-400" />
+            <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white bg-amber-400" />
           ) : (
-            <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white
-                              ${clientOnline ? "bg-green-400" : "bg-gray-300"}`} />
+            <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white
+              ${clientOnline ? "bg-emerald-400" : "bg-slate-300"}`} />
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex justify-between items-baseline">
-            <p className="font-semibold text-sm text-gray-800 truncate">
+          <div className="flex justify-between items-center">
+            <p className={`font-semibold text-sm truncate
+              ${active ? (isPending ? "text-amber-700" : "text-indigo-700") : "text-slate-800"}`}>
               {room.client_name || room.client_email || "Client"}
             </p>
             {isPending ? (
-              <span className="text-[10px] font-medium bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-full flex-shrink-0 ml-1">
-                Pending
-              </span>
+              <span className="text-[10px] font-semibold bg-amber-100 text-amber-600 px-2 py-0.5 rounded-lg flex-shrink-0 ml-1">New</span>
             ) : (
-              <p className="text-[11px] text-gray-400 flex-shrink-0 ml-1">
-                {formatTime(room.last_message_at)}
-              </p>
+              <p className="text-[10px] text-slate-400 flex-shrink-0 ml-1">{formatTime(room.last_message_at)}</p>
             )}
           </div>
-          <p className="text-xs text-gray-500 truncate mt-0.5">
-            {isPending ? "Wants to start a chat with you" : (room.last_message || "No messages yet")}
+          <p className="text-xs text-slate-400 truncate mt-0.5">
+            {isPending ? "Wants to consult with you" : (room.last_message || "No messages yet")}
           </p>
         </div>
+        {active && !isPending && <ChevronRight size={14} className="text-indigo-400 flex-shrink-0" />}
       </button>
     );
   };
@@ -176,93 +176,94 @@ export default function LawyerChat() {
   // ─── render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-screen bg-gray-100 overflow-hidden">
-      {/* ── Navigation Sidebar ──────────────────────────────────────────── */}
+    <div className="flex h-screen bg-slate-100 overflow-hidden">
       <LawyerSidebar />
 
-      {/* ── Chat Sidebar ────────────────────────────────────────────────── */}
-      <div className="w-[340px] flex-shrink-0 flex flex-col bg-white border-r border-gray-200">
+      {/* ── Conversation Sidebar ────────────────────────────────────────── */}
+      <div className="w-[320px] flex-shrink-0 flex flex-col bg-white shadow-md z-10">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 bg-[#075e54] text-white">
-          <div className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-full bg-teal-300 flex items-center justify-center
-                            font-bold text-teal-900 text-sm select-none">
-              L
+        <div className="px-5 pt-5 pb-4 bg-gradient-to-br from-indigo-600 to-violet-600 text-white">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
+                <Scale size={15} className="text-white" />
+              </div>
+              <span className="font-semibold text-sm tracking-wide">Client Chats</span>
             </div>
-            <span className="font-semibold text-sm">Client Chats</span>
+            <button
+              onClick={() => fetchRooms(true)}
+              disabled={refreshing}
+              title="Refresh"
+              className="p-1.5 rounded-lg bg-white/15 hover:bg-white/25 transition disabled:opacity-50"
+            >
+              <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} />
+            </button>
           </div>
-          <button
-            onClick={() => fetchRooms(true)}
-            disabled={refreshing}
-            title="Refresh"
-            className="p-1 rounded-full hover:bg-teal-700 transition disabled:opacity-50"
-          >
-            <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
-          </button>
+          {/* Search */}
+          <div className="flex items-center gap-2 bg-white/15 backdrop-blur-sm rounded-xl px-3 py-2 border border-white/20 focus-within:bg-white/25 transition">
+            <Search size={13} className="text-white/70 flex-shrink-0" />
+            <input
+              type="text"
+              placeholder="Search client…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="flex-1 text-sm outline-none bg-transparent text-white placeholder-white/50"
+            />
+          </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex border-b border-gray-200">
+        {/* Pill Tabs */}
+        <div className="flex gap-1.5 px-3 py-2.5 bg-slate-50 border-b border-slate-200">
           <button
             onClick={() => setActiveTab("active")}
-            className={`flex-1 py-2 text-sm font-medium transition ${
-              activeTab === "active"
-                ? "text-teal-600 border-b-2 border-teal-600"
-                : "text-gray-500 hover:text-gray-700"
-            }`}
+            className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs font-semibold transition
+              ${activeTab === "active" ? "bg-indigo-600 text-white shadow-sm" : "text-slate-500 hover:bg-slate-200"}`}
           >
             Active
             {activeRooms.length > 0 && (
-              <span className="ml-1 text-xs text-teal-400">({activeRooms.length})</span>
+              <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] leading-none
+                ${activeTab === "active" ? "bg-white/30 text-white" : "bg-slate-200 text-slate-600"}`}>
+                {activeRooms.length}
+              </span>
             )}
           </button>
           <button
             onClick={() => setActiveTab("requests")}
-            className={`flex-1 py-2 text-sm font-medium transition relative ${
-              activeTab === "requests"
-                ? "text-orange-600 border-b-2 border-orange-500"
-                : "text-gray-500 hover:text-gray-700"
-            }`}
+            className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs font-semibold transition
+              ${activeTab === "requests"
+                ? pendingRooms.length > 0 ? "bg-amber-500 text-white shadow-sm" : "bg-indigo-600 text-white shadow-sm"
+                : "text-slate-500 hover:bg-slate-200"}`}
           >
             Requests
             {pendingRooms.length > 0 && (
-              <span className="ml-1 text-xs font-bold bg-orange-500 text-white px-1.5 py-0.5 rounded-full">
+              <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] leading-none
+                ${activeTab === "requests" ? "bg-white/30 text-white" : "bg-amber-100 text-amber-600"}`}>
                 {pendingRooms.length}
               </span>
             )}
           </button>
         </div>
 
-        {/* Search */}
-        <div className="px-3 py-2 bg-gray-50 border-b border-gray-200">
-          <div className="flex items-center gap-2 bg-white rounded-full px-3 py-1.5
-                          border border-gray-300 focus-within:border-teal-400 transition">
-            <Search size={14} className="text-gray-400 flex-shrink-0" />
-            <input
-              type="text"
-              placeholder="Search client…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="flex-1 text-sm outline-none bg-transparent text-gray-700 placeholder-gray-400"
-            />
-          </div>
-        </div>
-
         {/* Room list */}
         <div className="flex-1 overflow-y-auto">
           {loading && (
-            <p className="text-center text-sm text-gray-400 py-8">Loading…</p>
+            <div className="flex items-center justify-center py-12 gap-2 text-slate-400">
+              <Loader2 size={16} className="animate-spin" />
+              <span className="text-sm">Loading…</span>
+            </div>
           )}
 
-          {/* ── ACTIVE TAB ────────────────────────────────────────────── */}
+          {/* ── ACTIVE TAB ── */}
           {!loading && activeTab === "active" && (
             <>
               {filteredActive.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-16 text-gray-400 select-none">
-                  <MessageSquare size={36} className="mb-2 opacity-40" />
-                  <p className="text-sm">No active chats yet</p>
-                  <p className="text-xs mt-1">Accept requests to start chatting</p>
+                <div className="flex flex-col items-center justify-center py-16 px-6 text-center select-none">
+                  <div className="w-14 h-14 rounded-2xl bg-indigo-50 flex items-center justify-center mb-3">
+                    <MessageSquare size={26} className="text-indigo-300" />
+                  </div>
+                  <p className="text-sm font-semibold text-slate-600">No active chats yet</p>
+                  <p className="text-xs mt-1 text-slate-400">Accept requests to start chatting</p>
                 </div>
               )}
               {filteredActive.map((room) => (
@@ -271,13 +272,16 @@ export default function LawyerChat() {
             </>
           )}
 
-          {/* ── REQUESTS TAB ──────────────────────────────────────────── */}
+          {/* ── REQUESTS TAB ── */}
           {!loading && activeTab === "requests" && (
             <>
               {filteredPending.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-16 text-gray-400 select-none">
-                  <Clock size={36} className="mb-2 opacity-40" />
-                  <p className="text-sm">No pending requests</p>
+                <div className="flex flex-col items-center justify-center py-16 px-6 text-center select-none">
+                  <div className="w-14 h-14 rounded-2xl bg-amber-50 flex items-center justify-center mb-3">
+                    <Clock size={26} className="text-amber-300" />
+                  </div>
+                  <p className="text-sm font-semibold text-slate-600">No pending requests</p>
+                  <p className="text-xs mt-1 text-slate-400">New requests will appear here</p>
                 </div>
               )}
               {filteredPending.map((room) => (
@@ -289,75 +293,63 @@ export default function LawyerChat() {
       </div>
 
       {/* ── Right Panel ─────────────────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col">
-
-        {/* Active room → full ChatWindow */}
-        {selectedRoom && selectedRoom.status === "active" && (
-          <ChatWindow
-            room={selectedRoom}
-            participantName={participantName}
-            myUserId={myUserId}
-            partnerUserId={selectedRoom?.client_id}
-            onClose={() => setSelectedRoom(null)}
-          />
-        )}
-
-        {/* Pending room → Accept panel */}
-        {selectedRoom && selectedRoom.status === "pending" && (
-          <div className="flex-1 flex items-center justify-center bg-gray-50">
-            <div className="bg-white rounded-2xl shadow-lg p-8 max-w-sm w-full text-center">
-              <div className="w-16 h-16 rounded-full bg-indigo-100 flex items-center justify-center
-                              font-bold text-indigo-700 text-2xl mx-auto mb-4 select-none">
-                {(selectedRoom.client_name || selectedRoom.client_email || "C").charAt(0).toUpperCase()}
-              </div>
-              <h2 className="text-lg font-semibold text-gray-800">
-                {selectedRoom.client_name || selectedRoom.client_email || "A client"}
-              </h2>
-              <p className="text-sm text-gray-500 mt-1 mb-6">
-                wants to start a chat with you
-              </p>
-              <button
-                onClick={() => handleAccept(selectedRoom.id)}
-                disabled={acceptingId === selectedRoom.id}
-                className="w-full flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700
-                           text-white font-medium py-2.5 rounded-xl transition disabled:opacity-60"
-              >
-                {acceptingId === selectedRoom.id ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Accepting…
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle size={18} />
-                    Accept Request
-                  </>
-                )}
-              </button>
-              <button
-                onClick={() => setSelectedRoom(null)}
-                className="mt-3 w-full text-sm text-gray-400 hover:text-gray-600 transition"
-              >
-                Dismiss
-              </button>
+      {selectedRoom && selectedRoom.status === "active" ? (
+        <ChatWindow
+          room={selectedRoom}
+          participantName={participantName}
+          myUserId={myUserId}
+          partnerUserId={selectedRoom?.client_id}
+          onClose={() => setSelectedRoom(null)}
+        />
+      ) : selectedRoom && selectedRoom.status === "pending" ? (
+        /* Accept card */
+        <div className="flex-1 flex items-center justify-center bg-slate-50 px-8">
+          <div className="bg-white rounded-3xl shadow-xl border border-slate-100 p-10 max-w-md w-full text-center">
+            <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center font-bold text-indigo-600 text-3xl mx-auto mb-5 select-none">
+              {(selectedRoom.client_name || selectedRoom.client_email || "C").charAt(0).toUpperCase()}
             </div>
+            <h2 className="text-xl font-bold text-slate-800">
+              {selectedRoom.client_name || selectedRoom.client_email || "A client"}
+            </h2>
+            <p className="text-sm text-slate-500 mt-2 mb-8">is requesting a consultation with you</p>
+            <button
+              onClick={() => handleAccept(selectedRoom.id)}
+              disabled={acceptingId === selectedRoom.id}
+              className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-semibold py-3 rounded-2xl transition shadow-lg shadow-indigo-100 disabled:opacity-60"
+            >
+              {acceptingId === selectedRoom.id ? (
+                <>
+                  <Loader2 size={18} className="animate-spin" />
+                  Accepting…
+                </>
+              ) : (
+                <>
+                  <CheckCircle size={18} />
+                  Accept Request
+                </>
+              )}
+            </button>
+            <button
+              onClick={() => setSelectedRoom(null)}
+              className="mt-3 w-full text-sm text-slate-400 hover:text-slate-600 transition py-2"
+            >
+              Dismiss
+            </button>
           </div>
-        )}
-
-        {/* No selection → empty state */}
-        {!selectedRoom && (
-          <div className="flex-1 flex flex-col items-center justify-center text-gray-400 select-none bg-gray-50">
-            <MessageSquare size={56} className="mb-4 opacity-30" />
-            <p className="text-base font-medium">Select a conversation</p>
-            <p className="text-sm mt-1">
-              {pendingRooms.length > 0
-                ? `You have ${pendingRooms.length} pending request${pendingRooms.length > 1 ? "s" : ""}`
-                : "No pending requests"}
-            </p>
+        </div>
+      ) : (
+        /* Empty state */
+        <div className="flex-1 flex flex-col items-center justify-center bg-slate-50 select-none">
+          <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center mb-5">
+            <Users size={40} className="text-indigo-400" />
           </div>
-        )}
-      </div>
-    </div>
+          <p className="text-lg font-bold text-slate-700">Client Consultations</p>
+          <p className="text-sm text-slate-400 mt-2 max-w-xs text-center">
+            {pendingRooms.length > 0
+              ? `You have ${pendingRooms.length} pending request${pendingRooms.length > 1 ? "s" : ""}. Open the Requests tab.`
+              : "Select a chat from the sidebar to start"}
+          </p>
+        </div>
+      )}    </div>
   );
 }
-

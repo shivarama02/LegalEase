@@ -199,7 +199,7 @@ export default function ChatWindow({ room, participantName, myUserId, partnerUse
   return (
     <div className="flex-1 flex flex-col h-full bg-[#efeae2]">
       {/* ── Header ────────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-3 px-4 py-3 bg-[#075e54] text-white shadow z-10">
+      <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow z-10">
         <div className="relative flex-shrink-0">
           <div className="w-10 h-10 rounded-full bg-teal-300 flex items-center justify-center
                           font-bold text-teal-900 select-none">
@@ -239,7 +239,7 @@ export default function ChatWindow({ room, participantName, myUserId, partnerUse
               <div
                 className={`max-w-[65%] rounded-2xl px-4 py-2 shadow-sm
                   ${own
-                    ? "bg-[#dcf8c6] rounded-br-sm text-gray-800"   /* sender  – right, green  */
+                    ? "bg-[#9b9ce9] rounded-br-sm text-gray-800"   /* sender  – right, green  */
                     : "bg-white     rounded-bl-sm text-gray-800"}  /* receiver – left, white  */
                 `}
               >
@@ -286,7 +286,7 @@ export default function ChatWindow({ room, participantName, myUserId, partnerUse
         <button
           onClick={handleSend}
           disabled={!inputText.trim() || wsStatus !== "open"}
-          className="p-2.5 rounded-full bg-[#075e54] text-white flex-shrink-0
+          className="p-2.5 rounded-full bg-gradient-to-r from-indigo-600 to-violet-600 text-white flex-shrink-0
                      hover:bg-teal-700 disabled:opacity-40 disabled:cursor-not-allowed transition"
         >
           <Send size={18} />

@@ -33,6 +33,7 @@ import LawyerFeedback from './pages/lawyer/Feedback'
 import ComplaintGenerator from './pages/user/ComplaintGenerator';
 import Complaints from './pages/user/Complaints';
 import ComplaintPreview from './pages/user/ComplaintPreview';
+import ComplaintHistory from './pages/user/ComplaintHistory';
 import LawyerDirectory from './pages/user/LawyerDirectory';
 import UserChat from './pages/user/UserChat';
 import Notifications from './pages/user/Notifications';
@@ -66,6 +67,7 @@ function App() {
             <Route path="/user/complaints" element={<Complaints />} />
             <Route path="/user/complaints/generator" element={<ComplaintGenerator />} />
             <Route path="/user/complaints/preview" element={<ComplaintPreview />} />
+            <Route path="/user/complaints/history" element={<ComplaintHistory />} />
             <Route path="/user/lawyers" element={<LawyerDirectory />} />
             <Route path="/user/lawyers/:id" element={<LawyerProfileView />} />
             <Route path="/user/chat" element={<UserChat />} />

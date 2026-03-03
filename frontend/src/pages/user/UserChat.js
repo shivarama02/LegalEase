@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import { Search, MessageSquare, Clock, Send } from "lucide-react";
+import { Search, MessageSquare, Clock, Send, Scale, Users, ChevronRight, Loader2 } from "lucide-react";
 import ChatWindow from "../../components/ChatWindow";
 import UserSidebar from "../../components/UserSidebar";
 import { requestChat, getMyRooms, getAllLawyers } from "../../services/chatApi";
@@ -129,57 +129,62 @@ export default function UserChat() {
   // ─── render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-screen bg-gray-100 overflow-hidden">
+    <div className="flex h-screen bg-slate-100 overflow-hidden">
       <UserSidebar />
 
-      {/* ── Chat Sidebar ─────────────────────────────────────────────────── */}
-      <div className="w-[340px] flex-shrink-0 flex flex-col bg-white border-r border-gray-200">
+      {/* ── Conversation Panel ─────────────────────────────────────────── */}
+      <div className="w-[320px] flex-shrink-0 flex flex-col bg-white shadow-md z-10">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 bg-[#075e54] text-white">
-          <div className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-full bg-teal-300 flex items-center justify-center font-bold text-teal-900 text-sm select-none">U</div>
-            <span className="font-semibold text-sm">Chat with Lawyers</span>
+        <div className="px-5 py-4 bg-gradient-to-r from-indigo-600 to-violet-600 text-white">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+                <Scale size={16} className="text-white" />
+              </div>
+              <span className="font-semibold text-sm tracking-wide">My Chats</span>
+            </div>
+            <span className="text-white/60 text-xs">{activeRooms.length} active</span>
           </div>
-          <MessageSquare size={20} className="opacity-80" />
-        </div>
-
-        {/* Tabs */}
-        <div className="flex border-b border-gray-200 text-xs font-medium">
-          {[
-            { key: "chats",   label: "Chats",    count: activeRooms.length },
-            { key: "pending", label: "Pending",  count: pendingRooms.length, badge: true },
-            { key: "lawyers", label: "Lawyers",  count: null },
-          ].map(({ key, label, count, badge }) => (
-            <button
-              key={key}
-              onClick={() => setActiveTab(key)}
-              className={`flex-1 py-2.5 flex items-center justify-center gap-1 transition
-                ${activeTab === key ? "text-teal-600 border-b-2 border-teal-600" : "text-gray-500 hover:text-gray-700"}`}
-            >
-              {label}
-              {count !== null && count > 0 && (
-                <span className={`rounded-full px-1.5 py-0.5 text-[10px] leading-none
-                  ${badge ? "bg-orange-500 text-white" : "bg-gray-200 text-gray-600"}`}>
-                  {count}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
-
-        {/* Search */}
-        <div className="px-3 py-2 bg-gray-50 border-b border-gray-200">
-          <div className="flex items-center gap-2 bg-white rounded-full px-3 py-1.5 border border-gray-300 focus-within:border-teal-400 transition">
-            <Search size={14} className="text-gray-400 flex-shrink-0" />
+          {/* Search */}
+          <div className="flex items-center gap-2 bg-white/15 backdrop-blur-sm rounded-xl px-3 py-2 border border-white/20 focus-within:bg-white/25 transition">
+            <Search size={13} className="text-white/70 flex-shrink-0" />
             <input
               type="text"
               placeholder={activeTab === "lawyers" ? "Search lawyers…" : "Search…"}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="flex-1 text-sm outline-none bg-transparent text-gray-700 placeholder-gray-400"
+              className="flex-1 text-sm outline-none bg-transparent text-white placeholder-white/50"
             />
           </div>
+        </div>
+
+        {/* Pill Tabs */}
+        <div className="flex gap-1.5 px-3 py-2.5 bg-slate-50 border-b border-slate-200">
+          {[
+            { key: "chats",   label: "Chats",   count: activeRooms.length  },
+            { key: "pending", label: "Pending", count: pendingRooms.length, warn: true },
+            { key: "lawyers", label: "Lawyers", count: null },
+          ].map(({ key, label, count, warn }) => (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key)}
+              className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs font-semibold transition
+                ${ activeTab === key
+                   ? warn && count > 0
+                     ? "bg-amber-500 text-white shadow-sm"
+                     : "bg-indigo-600 text-white shadow-sm"
+                   : "text-slate-500 hover:bg-slate-200"}`}
+            >
+              {label}
+              {count !== null && count > 0 && (
+                <span className={`rounded-full w-4 h-4 flex items-center justify-center text-[10px] leading-none
+                  ${activeTab === key ? "bg-white/30 text-white" : warn ? "bg-amber-100 text-amber-600" : "bg-slate-200 text-slate-600"}`}>
+                  {count}
+                </span>
+              )}
+            </button>
+          ))}
         </div>
 
         {/* List */}
@@ -189,31 +194,39 @@ export default function UserChat() {
           {activeTab === "chats" && (
             <>
               {filteredActive.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-16 text-gray-400 select-none px-4 text-center">
-                  <MessageSquare size={36} className="mb-2 opacity-40" />
-                  <p className="text-sm font-medium">No active chats</p>
-                  <p className="text-xs mt-1">Go to "Lawyers" tab and send a chat request</p>
+                <div className="flex flex-col items-center justify-center py-16 text-slate-400 select-none px-6 text-center">
+                  <div className="w-14 h-14 rounded-2xl bg-indigo-50 flex items-center justify-center mb-3">
+                    <MessageSquare size={26} className="text-indigo-300" />
+                  </div>
+                  <p className="text-sm font-semibold text-slate-600">No active chats</p>
+                  <p className="text-xs mt-1 text-slate-400">Go to Lawyers tab and send a request</p>
                 </div>
               )}
               {filteredActive.map((room) => {
                 const online = onlineUsers.has(String(room.lawyer_user_id));
+                const active = selectedRoom?.id === room.id;
                 return (
                   <button key={room.id} onClick={() => setSelectedRoom(room)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 border-b border-gray-100 hover:bg-gray-50 transition text-left
-                      ${selectedRoom?.id === room.id ? "bg-teal-50 border-l-4 border-l-teal-500" : ""}`}>
+                    className={`w-full flex items-center gap-3 px-4 py-3 border-b border-slate-100 transition text-left group
+                      ${active ? "bg-indigo-50" : "hover:bg-slate-50"}`}>
                     <div className="relative flex-shrink-0">
-                      <div className="w-11 h-11 rounded-full bg-teal-100 flex items-center justify-center font-bold text-teal-700 text-sm select-none">
+                      <div className={`w-11 h-11 rounded-2xl flex items-center justify-center font-bold text-sm select-none
+                        ${active ? "bg-indigo-600 text-white" : "bg-indigo-100 text-indigo-700"}`}>
                         {(room.lawyer_name || "L").charAt(0).toUpperCase()}
                       </div>
-                      <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${online ? "bg-green-400" : "bg-gray-300"}`} />
+                      <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white
+                        ${online ? "bg-emerald-400" : "bg-slate-300"}`} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex justify-between items-baseline">
-                        <p className="font-semibold text-sm text-gray-800 truncate">{room.lawyer_name || "Lawyer"}</p>
-                        <p className="text-[11px] text-gray-400 flex-shrink-0 ml-1">{formatTime(room.last_message_at)}</p>
+                      <div className="flex justify-between items-center">
+                        <p className={`font-semibold text-sm truncate ${active ? "text-indigo-700" : "text-slate-800"}`}>
+                          {room.lawyer_name || "Lawyer"}
+                        </p>
+                        <p className="text-[10px] text-slate-400 flex-shrink-0 ml-1">{formatTime(room.last_message_at)}</p>
                       </div>
-                      <p className="text-xs text-gray-500 truncate mt-0.5">{room.last_message || "No messages yet"}</p>
+                      <p className="text-xs text-slate-400 truncate mt-0.5">{room.last_message || "No messages yet"}</p>
                     </div>
+                    {active && <ChevronRight size={14} className="text-indigo-400 flex-shrink-0" />}
                   </button>
                 );
               })}
@@ -224,67 +237,82 @@ export default function UserChat() {
           {activeTab === "pending" && (
             <>
               {filteredPending.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-16 text-gray-400 select-none px-4 text-center">
-                  <Clock size={36} className="mb-2 opacity-40" />
-                  <p className="text-sm font-medium">No pending requests</p>
-                  <p className="text-xs mt-1">Requests you've sent will appear here</p>
+                <div className="flex flex-col items-center justify-center py-16 text-slate-400 select-none px-6 text-center">
+                  <div className="w-14 h-14 rounded-2xl bg-amber-50 flex items-center justify-center mb-3">
+                    <Clock size={26} className="text-amber-300" />
+                  </div>
+                  <p className="text-sm font-semibold text-slate-600">No pending requests</p>
+                  <p className="text-xs mt-1 text-slate-400">Sent requests will appear here</p>
                 </div>
               )}
-              {filteredPending.map((room) => (
-                <button key={room.id} onClick={() => setSelectedRoom(room)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 border-b border-gray-100 hover:bg-gray-50 transition text-left
-                    ${selectedRoom?.id === room.id ? "bg-orange-50 border-l-4 border-l-orange-400" : ""}`}>
-                  <div className="w-11 h-11 rounded-full bg-orange-100 flex items-center justify-center font-bold text-orange-600 text-sm flex-shrink-0 select-none">
-                    {(room.lawyer_name || "L").charAt(0).toUpperCase()}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm text-gray-800 truncate">{room.lawyer_name || "Lawyer"}</p>
-                    <p className="text-xs text-orange-500 mt-0.5 flex items-center gap-1">
-                      <Clock size={10} /> Awaiting acceptance…
-                    </p>
-                  </div>
-                </button>
-              ))}
+              {filteredPending.map((room) => {
+                const active = selectedRoom?.id === room.id;
+                return (
+                  <button key={room.id} onClick={() => setSelectedRoom(room)}
+                    className={`w-full flex items-center gap-3 px-4 py-3 border-b border-slate-100 transition text-left
+                      ${active ? "bg-amber-50" : "hover:bg-slate-50"}`}>
+                    <div className={`w-11 h-11 rounded-2xl flex items-center justify-center font-bold text-sm flex-shrink-0 select-none
+                      ${active ? "bg-amber-500 text-white" : "bg-amber-100 text-amber-600"}`}>
+                      {(room.lawyer_name || "L").charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={`font-semibold text-sm truncate ${active ? "text-amber-700" : "text-slate-800"}`}>
+                        {room.lawyer_name || "Lawyer"}
+                      </p>
+                      <p className="text-xs text-amber-500 mt-0.5 flex items-center gap-1">
+                        <Clock size={10} /> Awaiting acceptance…
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
             </>
           )}
 
           {/* ALL LAWYERS */}
           {activeTab === "lawyers" && (
             <>
-              {loadingLawyers && <p className="text-center text-sm text-gray-400 py-8">Loading lawyers…</p>}
+              {loadingLawyers && (
+                <div className="flex items-center justify-center py-12 text-slate-400 gap-2">
+                  <Loader2 size={16} className="animate-spin" />
+                  <span className="text-sm">Loading lawyers…</span>
+                </div>
+              )}
               {!loadingLawyers && filteredLawyers.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-16 text-gray-400 select-none">
-                  <MessageSquare size={36} className="mb-2 opacity-40" />
-                  <p className="text-sm">No lawyers found</p>
+                <div className="flex flex-col items-center justify-center py-16 text-slate-400 select-none">
+                  <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mb-3">
+                    <Users size={24} className="text-slate-300" />
+                  </div>
+                  <p className="text-sm font-semibold text-slate-600">No lawyers found</p>
                 </div>
               )}
               {filteredLawyers.map((lawyer) => {
                 const room     = roomByLawyerId[String(lawyer.id)];
-                const status   = room?.status;            // undefined | 'pending' | 'active'
+                const status   = room?.status;
                 const isReqing = requestingId === lawyer.id;
                 const online   = onlineUsers.has(String(lawyer.user_id));
                 return (
                   <button key={lawyer.id} onClick={() => handleLawyerClick(lawyer)} disabled={isReqing}
-                    className="w-full flex items-center gap-3 px-4 py-3 border-b border-gray-100 hover:bg-gray-50 transition text-left disabled:opacity-60">
+                    className="w-full flex items-center gap-3 px-4 py-3 border-b border-slate-100 hover:bg-slate-50 transition text-left disabled:opacity-60">
                     <div className="relative flex-shrink-0">
-                      <div className="w-11 h-11 rounded-full bg-indigo-100 flex items-center justify-center font-bold text-indigo-700 text-sm select-none">
+                      <div className="w-11 h-11 rounded-2xl bg-violet-100 flex items-center justify-center font-bold text-violet-700 text-sm select-none">
                         {(lawyer.lname || "L").charAt(0).toUpperCase()}
                       </div>
-                      <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${online ? "bg-green-400" : "bg-gray-300"}`} />
+                      <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white
+                        ${online ? "bg-emerald-400" : "bg-slate-300"}`} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sm text-gray-800 truncate">{lawyer.lname || "Lawyer"}</p>
-                      <p className="text-xs text-gray-500 truncate mt-0.5">{lawyer.specialization || ""}</p>
+                      <p className="font-semibold text-sm text-slate-800 truncate">{lawyer.lname || "Lawyer"}</p>
+                      <p className="text-xs text-slate-400 truncate mt-0.5">{lawyer.specialization || "General Practice"}</p>
                     </div>
-                    {/* Status chip */}
                     {isReqing ? (
-                      <div className="w-4 h-4 border-2 border-teal-500 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                      <Loader2 size={14} className="animate-spin text-indigo-400 flex-shrink-0" />
                     ) : status === "active" ? (
-                      <span className="text-[10px] bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full flex-shrink-0">Open</span>
+                      <span className="text-[10px] font-semibold bg-emerald-100 text-emerald-700 px-2 py-1 rounded-lg flex-shrink-0">Open</span>
                     ) : status === "pending" ? (
-                      <span className="text-[10px] bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full flex-shrink-0">Pending</span>
+                      <span className="text-[10px] font-semibold bg-amber-100 text-amber-600 px-2 py-1 rounded-lg flex-shrink-0">Pending</span>
                     ) : (
-                      <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full flex-shrink-0 flex items-center gap-0.5">
+                      <span className="text-[10px] font-semibold bg-indigo-50 text-indigo-600 px-2 py-1 rounded-lg flex-shrink-0 flex items-center gap-0.5">
                         <Send size={9} /> Request
                       </span>
                     )}
@@ -306,28 +334,31 @@ export default function UserChat() {
           onClose={() => setSelectedRoom(null)}
         />
       ) : selectedRoom?.status === "pending" ? (
-        /* Pending state panel */
-        <div className="flex-1 flex flex-col items-center justify-center bg-gray-50 text-gray-500 select-none px-8 text-center">
-          <div className="w-20 h-20 rounded-full bg-orange-100 flex items-center justify-center mb-4">
-            <Clock size={36} className="text-orange-400" />
+        <div className="flex-1 flex flex-col items-center justify-center bg-slate-50 px-8">
+          <div className="bg-white rounded-3xl shadow-xl border border-slate-100 p-10 max-w-md w-full text-center">
+            <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-amber-400 to-orange-400 flex items-center justify-center mx-auto mb-5 shadow-lg shadow-amber-100">
+              <Clock size={34} className="text-white" />
+            </div>
+            <h2 className="text-xl font-bold text-slate-800">Request Sent</h2>
+            <p className="text-sm text-slate-500 mt-2">
+              Your chat request has been sent to{" "}
+              <span className="font-semibold text-indigo-600">{selectedRoom.lawyer_name}</span>.
+            </p>
+            <p className="text-xs text-slate-400 mt-1">Waiting for the lawyer to accept your request.</p>
+            <div className="mt-6 flex items-center justify-center gap-2 text-xs text-slate-400">
+              <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+              Pending approval
+            </div>
+            <p className="text-[11px] text-slate-300 mt-4">Room #{selectedRoom.id} · permanent</p>
           </div>
-          <p className="text-lg font-semibold text-gray-700">Request Sent</p>
-          <p className="text-sm mt-2 text-gray-500">
-            Your chat request has been sent to <span className="font-medium text-teal-700">{selectedRoom.lawyer_name}</span>.
-          </p>
-          <p className="text-xs mt-1 text-gray-400">
-            The lawyer needs to accept before you can start chatting.
-          </p>
-          <p className="text-xs mt-4 text-gray-300">Room #{selectedRoom.id} · permanent</p>
         </div>
       ) : (
-        /* Empty state */
-        <div className="flex-1 flex flex-col items-center justify-center bg-gray-50 text-gray-400 select-none">
-          <div className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center mb-4">
-            <MessageSquare size={36} className="text-gray-400" />
+        <div className="flex-1 flex flex-col items-center justify-center bg-slate-50 select-none">
+          <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center mb-5">
+            <MessageSquare size={40} className="text-indigo-400" />
           </div>
-          <p className="text-lg font-medium">Select a conversation</p>
-          <p className="text-sm mt-1">Or browse "Lawyers" to request a chat</p>
+          <p className="text-lg font-bold text-slate-700">Start a Conversation</p>
+          <p className="text-sm text-slate-400 mt-1 max-w-xs text-center">Browse the Lawyers tab to find and request a consultation</p>
         </div>
       )}
     </div>

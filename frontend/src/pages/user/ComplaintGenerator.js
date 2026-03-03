@@ -1,13 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import UserSidebar from '../../components/UserSidebar';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { COMPLAINT_TYPE_MAP, COMPLAINT_TYPES } from './Complaints';
+import { COMPLAINT_TYPE_MAP } from './Complaints';
 import {
-	ChevronLeft,
+  ArrowLeft, ClipboardList, Eye, User, MapPin, Calendar, FileText, IndianRupee, AlertCircle, CheckCircle2, ChevronDown,
 } from 'lucide-react';
 import { apiUrl } from '../../api';
 
-// Static replica of provided complaint generator HTML (no logic yet)
 export default function ComplaintGenerator() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -16,13 +15,14 @@ export default function ComplaintGenerator() {
     return params.get('type');
   }, [location.search]);
   const selectedMeta = queryType && COMPLAINT_TYPE_MAP[queryType] ? COMPLAINT_TYPE_MAP[queryType] : null;
+
   const normalizeTypeToKey = (t) => {
     if (!t) return '';
-    if (COMPLAINT_TYPE_MAP[t]) return t; // already a key
+    if (COMPLAINT_TYPE_MAP[t]) return t;
     const found = Object.values(COMPLAINT_TYPE_MAP).find(ct => ct.title.toLowerCase() === String(t).toLowerCase());
     return found ? found.key : '';
   };
-  // Minimal local state for preview (not full controlled form refactor)
+
   const incoming = location.state?.complaint || {};
   const [form, setForm] = useState(() => ({
     complaint_type: normalizeTypeToKey(incoming.complaint_type) || (selectedMeta ? selectedMeta.key : ''),
@@ -45,69 +45,54 @@ export default function ComplaintGenerator() {
 
   const validate = (values) => {
     const e = {};
-    if (!values.complaint_type || String(values.complaint_type).trim() === '') {
-      e.complaint_type = 'Please select a complaint type.';
-    }
-    if (!values.complainant_name || String(values.complainant_name).trim() === '') {
-      e.complainant_name = 'Full name is required.';
-    }
-    if (!values.respondent_name || String(values.respondent_name).trim() === '') {
-      e.respondent_name = 'Respondent name/company is required.';
-    }
-    if (!values.description || String(values.description).trim() === '') {
-      e.description = 'Detailed description is required.';
-    }
+    if (!values.complaint_type || String(values.complaint_type).trim() === '') e.complaint_type = 'Please select a complaint type.';
+    if (!values.complainant_name || String(values.complainant_name).trim() === '') e.complainant_name = 'Full name is required.';
+    if (!values.complainant_phone || String(values.complainant_phone).trim() ==='') e.complainant_phone = 'Phone number is required.';
+    if (!values.complainant_email || String(values.complainant_email).trim() === '') e.complainant_email = 'Email is required.';
+    if (!values.complainant_address || String(values.complainant_address).trim() === '') e.complainant_address = 'Address is required.';
+    if (!values.respondent_name || String(values.respondent_name).trim() === '') e.respondent_name = 'Respondent name/company is required.';
+    if (!values.respondent_address || String(values.respondent_address).trim() === '') e.respondent_address = 'Respondent address is required.';
+    if (!values.incident_date || String(values.incident_date).trim() === '') e.incident_date = 'Incident date0 is required.';
+    if (!values.incident_location || String(values.incident_location).trim() === '') e.incident_location = 'Incident location is required.';
+    if (!values.description || String(values.description).trim() === '') e.description = 'Detailed description is required.';
+    if (!values.damages_amount || String(values.damages_amount).trim() === '') e.damages_amount  = 'Please mention your damages';
+    if (!values.evidence_summary || String(values.evidence_summary).trim() === '') e.evidence_summary  = 'The Evidences are Required';
+    if (!values.relief_sought || String(values.relief_sought).trim() === '') e.relief_sought  = 'PLease mention your relief soughts';
     return e;
   };
 
   const update = (field) => (e) => {
     const value = e.target.value;
     setForm(prev => ({ ...prev, [field]: value }));
-    // Clear field error on change
     setErrors(prev => (prev[field] ? { ...prev, [field]: undefined } : prev));
   };
+
   const handlePreview = async () => {
     const token = sessionStorage.getItem('authToken');
-    if(!token){
-      alert('Please login first to create a complaint.');
-      return;
-    }
-    // Client-side required validation
-    const current = { ...form };
-    const newErrors = validate(current);
+    if (!token) { alert('Please login first to create a complaint.'); return; }
+    const newErrors = validate({ ...form });
     if (Object.keys(newErrors).filter(k => newErrors[k]).length > 0) {
       setErrors(newErrors);
-      const messages = Object.values(newErrors).filter(Boolean);
-      alert('Please fill the required fields:\n- ' + messages.join('\n- '));
+      alert('Please fill the required fields:\n ' );
       return;
     }
     try {
-      // Normalize payload: ensure complaint_type is canonical key; convert empty strings to null for nullable fields
       const payload = { ...form };
       payload.complaint_type = normalizeTypeToKey(payload.complaint_type);
-      if (!payload.complaint_type) {
-        throw new Error('Please select a valid complaint type.');
-      }
-      // Trim all string fields
-      Object.keys(payload).forEach(k => {
-        if (typeof payload[k] === 'string') payload[k] = payload[k].trim();
-      });
+      if (!payload.complaint_type) throw new Error('Please select a valid complaint type.');
+      Object.keys(payload).forEach(k => { if (typeof payload[k] === 'string') payload[k] = payload[k].trim(); });
       payload.incident_date = payload.incident_date || null;
-      if(payload.damages_amount === '' || isNaN(parseFloat(payload.damages_amount))) {
-        payload.damages_amount = null;
-      }
-      // Provide a safe default title if missing
+      if (payload.damages_amount === '' || isNaN(parseFloat(payload.damages_amount))) payload.damages_amount = null;
       if (!payload.title) {
         const disp = COMPLAINT_TYPE_MAP[payload.complaint_type]?.title || payload.complaint_type || 'Complaint';
         payload.title = `${disp} Complaint Draft`;
       }
-      try { console.debug('Creating draft with payload:', payload); } catch(_) {}
       const res = await fetch(apiUrl('/complaint-drafts/'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Token ${token}` },
         body: JSON.stringify(payload)
       });
-      if(!res.ok){
+      if (!res.ok) {
         let msg = `Failed to create draft (${res.status})`;
         try {
           const bodyText = await res.text();
@@ -115,257 +100,225 @@ export default function ComplaintGenerator() {
             const errJson = JSON.parse(bodyText);
             if (errJson && typeof errJson === 'object') {
               const entries = Object.entries(errJson);
-              if (entries.length > 0) {
-                const first = entries[0];
-                const field = first[0];
-                const issues = first[1];
-                const issueMsg = Array.isArray(issues) ? issues.join(', ') : String(issues);
-                msg += `: ${field} - ${issueMsg}`;
-              } else if (errJson.detail) {
-                msg += `: ${errJson.detail}`;
-              }
-            } else if (bodyText) {
-              msg += `: ${bodyText}`;
-            }
-          } catch(_) {
-            if (bodyText) msg += `: ${bodyText}`;
-          }
-        } catch(_) {}
+              if (entries.length > 0) { const [field, issues] = entries[0]; msg += `: ${field} - ${Array.isArray(issues) ? issues.join(', ') : String(issues)}`; }
+              else if (errJson.detail) msg += `: ${errJson.detail}`;
+            } else if (bodyText) msg += `: ${bodyText}`;
+          } catch (_) { if (bodyText) msg += `: ${bodyText}`; }
+        } catch (_) {}
         throw new Error(msg);
       }
       const draft = await res.json();
       navigate('/user/complaints/preview', { state: { draftId: draft.id } });
-    } catch(e){
+    } catch (e) {
       console.error(e);
       alert('Failed to create draft: ' + e.message);
     }
   };
 
+  const inputCls = (field) =>
+    `w-full bg-white border ${errors[field] ? 'border-red-400 focus:ring-red-200' : 'border-slate-200 focus:ring-indigo-200 focus:border-indigo-400'} rounded-xl px-3.5 py-2.5 text-sm outline-none focus:ring-2 transition`;
+
+  const filledCount = [form.complaint_type, form.complainant_name, form.complainant_phone, form.complainant_email, form.complainant_address, form.respondent_name, form.respondent_address, form.incident_date, form.incident_location, form.description, form.damages_amount, form.evidence_summary, form.relief_sought].filter(Boolean).length;
+
   return (
-    <div className="min-h-screen bg-gradient-subtle flex">
-      <UserSidebar />
-      <div className="flex-1">
-        <div className="max-w-6xl mx-auto p-4">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center space-x-4">
-              <button
-								onClick={() => navigate('/user/complaints')}
-								className="border rounded px-3 py-2 flex items-center text-sm bg-white hover:bg-gray-50"
-							>
-								<ChevronLeft className="h-4 w-4" />
-							</button>
-              <div className="flex items-center space-x-2">
-                {/* FileText */}
-                <svg className="h-8 w-8 text-blue-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h7l5 5v12a2 2 0 01-2 2z" />
-                </svg>
-                <h1 className="text-3xl font-bold text-gray-900">Complaint Generator</h1>
+    <div className="min-h-screen bg-slate-50">
+      <div className="flex min-h-screen">
+        <UserSidebar />
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="max-w-5xl mx-auto">
+
+            {/* Back */}
+            <button onClick={() => navigate('/user/complaints')} className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-indigo-600 transition mb-4">
+              <ArrowLeft size={15} /> Back to complaints
+            </button>
+
+            {/* Header */}
+            <div className="mb-6 text-left">
+              <div className="flex items-start gap-3">
+                
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center">
+                  <ClipboardList size={18} className="text-white" />
+                </div>
+
+                <div>
+                  <h1 className="text-2xl font-extrabold text-slate-900">
+                    Complaint Generator
+                  </h1>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Fill in the details below to generate your complaint draft.
+                  </p>
+                </div>
+
               </div>
             </div>
-            <div className="flex items-center space-x-2" />
-          </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
-            {/* Form */}
-            <div className="lg:col-span-2">
-              <div className="shadow-lg rounded-lg bg-white overflow-hidden">
-                <div className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-6 py-3">
-                  <h2 className="text-xl">Complaint Details Form</h2>
+            
+
+            {/* Auto-selected banner */}
+            {selectedMeta && (
+              <div className="bg-gradient-to-r from-indigo-50 to-violet-50 border border-indigo-100 rounded-2xl p-4 mb-6">
+                <div className="flex items-center justify-between mb-1">
+                  <h3 className="text-lg font-bold text-indigo-700">{selectedMeta.title}</h3>
+                  <span className="text-[12px] px-2 py-0.5 rounded-full bg-indigo-600 text-white font-semibold">Auto-selected</span>
                 </div>
-                <div className="p-6 space-y-6">
-                  {/* Selected Type Banner */}
-                  {selectedMeta && (
-                    <div className="border rounded p-4 bg-gradient-to-r from-indigo-50 to-purple-50 mb-2">
-                      <div className="flex items-center justify-between mb-1">
-                        <h3 className="font-semibold text-indigo-700">{selectedMeta.title}</h3>
-                        <span className="text-xs px-2 py-0.5 rounded bg-indigo-600 text-white">Auto-selected</span>
-                      </div>
-                      <p className="text-xs text-gray-600 mb-2">{selectedMeta.desc}</p>
-                      <div className="flex flex-wrap gap-1">
-                        {selectedMeta.fields.map(f => (
-                          <span key={f} className="text-[10px] px-2 py-0.5 border border-gray-300 rounded">{f}</span>
-                        ))}
-                      </div>
+                <p className="text-xs text-slate-500 mb-6 text-left">{selectedMeta.desc}</p>
+                
+              {/* Progress pills */}
+              <div className="flex flex-wrap items-center justify-center gap-4 mb-2">
+                {['Type', 'Complainant', 'Respondent', 'Description', 'Additional'].map((step, i) => {
+                  const filled = [!!(form.complaint_type), !!(form.complainant_name && form.complainant_phone && form.complainant_email && form.complainant_address), !!(form.respondent_name && form.respondent_address), !!(form.incident_date && form.incident_location && form.description), !!(form.damages_amount && form.evidence_summary && form.relief_sought)][i];
+                  return (
+                    <div key={step} className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${filled ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-400 border border-slate-200'}`}>
+                      {filled ? <CheckCircle2 size={12} /> : <span className="w-3 h-3 rounded-full border border-slate-300" />}
+                      {step}
                     </div>
-                  )}
+                  );
+                })}
+                
+            </div>
+              </div>
+            )}
 
-                  {/* Complaint Type */}
+            {/* Form Card */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+
+              {/* Complaint Type */}
+              <div className="p-6 border-b border-slate-100">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Complaint Type</p>
+                <div className="relative">
+                  <select
+                    className={`${inputCls('complaint_type')} appearance-none ${selectedMeta ? 'bg-slate-50 text-slate-500 cursor-not-allowed' : ''}`}
+                    value={form.complaint_type}
+                    onChange={update('complaint_type')}
+                    disabled={!!selectedMeta}
+                    required
+                  >
+                    <option value="" disabled>{selectedMeta ? 'Selected via category' : 'Select complaint type'}</option>
+                    {Object.values(COMPLAINT_TYPE_MAP).map(ct => (
+                      <option key={ct.key} value={ct.key}>{ct.title}</option>
+                    ))}
+                  </select>
+                  <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                </div>
+                {errors.complaint_type && <p className="mt-1.5 text-xs text-red-500 flex items-center gap-1"><AlertCircle size={12} /> {errors.complaint_type}</p>}
+              </div> 
+
+              {/* Complainant */}
+              <div className="p-6 border-b border-slate-100">
+                <div className="flex items-center gap-2 mb-4">
+                  <User size={16} className="text-indigo-500" />
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Complainant Information</p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block mb-1 text-sm font-medium">Type of Complaint *</label>
-                    <select
-                      className={`w-full border rounded px-3 py-2 ${errors.complaint_type ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-indigo-500'}`}
-                      value={form.complaint_type}
-                      onChange={update('complaint_type')}
-                      required
-                      aria-invalid={!!errors.complaint_type}
-                    >
-                      <option value="" disabled>{selectedMeta ? 'Selected via category' : 'Select complaint type'}</option>
-                      {Object.values(COMPLAINT_TYPE_MAP).map(ct => (
-                        <option key={ct.key} value={ct.key}>{ct.title}</option>
-                      ))}
-                    </select>
-                    {errors.complaint_type && (
-                      <p className="mt-1 text-xs text-red-600">{errors.complaint_type}</p>
-                    )}
+                    <label className="block mb-1.5 text-xs font-medium text-slate-600">Full Name *</label>
+                    <input type="text" className={inputCls('complainant_name')} placeholder="Enter your full name" value={form.complainant_name} onChange={update('complainant_name')} />
+                    {errors.complainant_name && <p className="mt-1 text-xs text-red-500 flex items-center gap-1"><AlertCircle size={12} /> {errors.complainant_name}</p>}
                   </div>
-
-                  {/* Complainant Information */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold">Complainant Information</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block mb-1 text-sm font-medium">Full Name *</label>
-                        <input
-                          type="text"
-                          className={`w-full border rounded px-3 py-2 ${errors.complainant_name ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-indigo-500'}`}
-                          placeholder="Enter your full name"
-                          value={form.complainant_name}
-                          onChange={update('complainant_name')}
-                          required
-                          aria-invalid={!!errors.complainant_name}
-                        />
-                        {errors.complainant_name && (
-                          <p className="mt-1 text-xs text-red-600">{errors.complainant_name}</p>
-                        )}
-                      </div>
-                      <div>
-                        <label className="block mb-1 text-sm font-medium">Phone Number</label>
-                        <input type="text" className="w-full border rounded px-3 py-2" placeholder="Enter phone number" value={form.complainant_phone} onChange={update('complainant_phone')} />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block mb-1 text-sm font-medium">Email Address</label>
-                      <input type="email" className="w-full border rounded px-3 py-2" placeholder="Enter email address" value={form.complainant_email} onChange={update('complainant_email')} />
-                    </div>
-                    <div>
-                      <label className="block mb-1 text-sm font-medium">Address</label>
-                      <textarea rows={2} className="w-full border rounded px-3 py-2" placeholder="Enter complete address" value={form.complainant_address} onChange={update('complainant_address')}></textarea>
-                    </div>
-                  </div>
-
-                  {/* Respondent Information */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold">Respondent Information</h3>
-                    <div>
-                      <label className="block mb-1 text-sm font-medium">Name/Company *</label>
-                      <input
-                        type="text"
-                        className={`w-full border rounded px-3 py-2 ${errors.respondent_name ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-indigo-500'}`}
-                        placeholder="Name of person/company"
-                        value={form.respondent_name}
-                        onChange={update('respondent_name')}
-                        required
-                        aria-invalid={!!errors.respondent_name}
-                      />
-                      {errors.respondent_name && (
-                        <p className="mt-1 text-xs text-red-600">{errors.respondent_name}</p>
-                      )}
-                    </div>
-                    <div>
-                      <label className="block mb-1 text-sm font-medium">Address</label>
-                      <textarea rows={2} className="w-full border rounded px-3 py-2" placeholder="Respondent's address" value={form.respondent_address} onChange={update('respondent_address')}></textarea>
-                    </div>
-                  </div>
-
-                  {/* Incident Details */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold">Incident Details</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block mb-1 text-sm font-medium">Date of Incident</label>
-                        <input type="date" className="w-full border rounded px-3 py-2" value={form.incident_date} onChange={update('incident_date')} />
-                      </div>
-                      <div>
-                        <label className="block mb-1 text-sm font-medium">Location</label>
-                        <input type="text" className="w-full border rounded px-3 py-2" placeholder="Where did the incident occur?" value={form.incident_location} onChange={update('incident_location')} />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block mb-1 text-sm font-medium">Detailed Description *</label>
-                      <textarea
-                        rows={6}
-                        className={`w-full border rounded px-3 py-2 ${errors.description ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-indigo-500'}`}
-                        placeholder="Provide a detailed description..."
-                        value={form.description}
-                        onChange={update('description')}
-                        required
-                        aria-invalid={!!errors.description}
-                      ></textarea>
-                      {errors.description && (
-                        <p className="mt-1 text-xs text-red-600">{errors.description}</p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Additional Information */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold">Additional Information</h3>
-                    <div>
-                      <label className="block mb-1 text-sm font-medium">Damages/Loss Amount</label>
-                      <input type="text" className="w-full border rounded px-3 py-2" placeholder="Enter monetary damages" value={form.damages_amount} onChange={update('damages_amount')} />
-                    </div>
-                    <div>
-                      <label className="block mb-1 text-sm font-medium">Evidence Available</label>
-                      <textarea rows={3} className="w-full border rounded px-3 py-2" placeholder="Describe any evidence..." value={form.evidence_summary} onChange={update('evidence_summary')}></textarea>
-                    </div>
-                    <div>
-                      <label className="block mb-1 text-sm font-medium">Relief Sought</label>
-                      <textarea rows={3} className="w-full border rounded px-3 py-2" placeholder="What outcome do you want?" value={form.relief_sought} onChange={update('relief_sought')}></textarea>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end space-x-4 pt-6 border-t">
-                    <button onClick={handlePreview} type="button" className="px-4 py-2 rounded text-white bg-gradient-to-r from-blue-500 to-indigo-600 flex items-center">
-                      {/* Eye */}
-                      <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                      </svg>
-                      Preview Complaint
-                    </button>
+                  <div>
+                    <label className="block mb-1.5 text-xs font-medium text-slate-600">Phone Number</label>
+                    <input type="text" className={inputCls('complainant_phone')} placeholder="Enter phone number" value={form.complainant_phone} onChange={update('complainant_phone')} />
+                    {errors.complainant_phone && <p className="mt-1 text-xs text-red-500 flex items-center gap-1"><AlertCircle size={12} /> {errors.complainant_phone}</p>}
                   </div>
                 </div>
+                <div className="mt-4">
+                  <label className="block mb-1.5 text-xs font-medium text-slate-600">Email Address</label>
+                  <input type="email" className={inputCls('complainant_email')} placeholder="Enter email address" value={form.complainant_email} onChange={update('complainant_email')} />
+                    {errors.complainant_email && <p className="mt-1 text-xs text-red-500 flex items-center gap-1"><AlertCircle size={12} /> {errors.complainant_email}</p>}
+                </div>
+                <div className="mt-4">
+                  <label className="block mb-1.5 text-xs font-medium text-slate-600">Address</label>
+                  <textarea rows={2} className={inputCls('complainant_address')} placeholder="Enter complete address" value={form.complainant_address} onChange={update('complainant_address')} />
+                    {errors.complainant_address && <p className="mt-1 text-xs text-red-500 flex items-center gap-1"><AlertCircle size={12} /> {errors.complainant_address}</p>}
+                </div>
+              </div>
+
+              {/* Respondent */}
+              <div className="p-6 border-b border-slate-100">
+                <div className="flex items-center gap-2 mb-4">
+                  <User size={16} className="text-violet-500" />
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Respondent Information</p>
+                </div>
+                <div>
+                  <label className="block mb-1.5 text-xs font-medium text-slate-600">Name / Company *</label>
+                  <input type="text" className={inputCls('respondent_name')} placeholder="Name of person/company" value={form.respondent_name} onChange={update('respondent_name')} />
+                  {errors.respondent_name && <p className="mt-1 text-xs text-red-500 flex items-center gap-1"><AlertCircle size={12} /> {errors.respondent_name}</p>}
+                </div>
+                <div className="mt-4">
+                  <label className="block mb-1.5 text-xs font-medium text-slate-600">Address</label>
+                  <textarea rows={2} className={inputCls('respondent_address')} placeholder="Respondent's address" value={form.respondent_address} onChange={update('respondent_address')} />
+                    {errors.respondent_address && <p className="mt-1 text-xs text-red-500 flex items-center gap-1"><AlertCircle size={12} /> {errors.respondent_address}</p>}
+                </div>
+              </div>
+
+              {/* Incident */}
+              <div className="p-6 border-b border-slate-100">
+                <div className="flex items-center gap-2 mb-4">
+                  <MapPin size={16} className="text-amber-500" />
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Incident Details</p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block mb-1.5 text-xs font-medium text-slate-600">Date of Incident</label>
+                    <div className="relative">
+                      <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                      <input type="date" className={`${inputCls('incident_date')} pl-9`} value={form.incident_date} onChange={update('incident_date')} />
+                    {errors.incident_date && <p className="mt-1 text-xs text-red-500 flex items-center gap-1"><AlertCircle size={12} /> {errors.incident_date}</p>}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block mb-1.5 text-xs font-medium text-slate-600">Location</label>
+                    <div className="relative">
+                      <MapPin size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                      <input type="text" className={`${inputCls('incident_location')} pl-9`} placeholder="Where did it occur?" value={form.incident_location} onChange={update('incident_location')} />
+                    {errors.incident_location && <p className="mt-1 text-xs text-red-500 flex items-center gap-1"><AlertCircle size={12} /> {errors.incident_location}</p>}
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <label className="block mb-1.5 text-xs font-medium text-slate-600">Detailed Description *</label>
+                  <textarea rows={5} className={inputCls('description')} placeholder="Provide a detailed description of the incident..." value={form.description} onChange={update('description')} />
+                  {errors.description && <p className="mt-1 text-xs text-red-500 flex items-center gap-1"><AlertCircle size={12} /> {errors.description}</p>}
+                </div>
+              </div>
+
+              {/* Additional */}
+              <div className="p-6 border-b border-slate-100">
+                <div className="flex items-center gap-2 mb-4">
+                  <FileText size={16} className="text-emerald-500" />
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Additional Information</p>
+                </div>
+                <div>
+                  <label className="block mb-1.5 text-xs font-medium text-slate-600">Damages / Loss Amount</label>
+                  <div className="relative">
+                    {/* <IndianRupee size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" /> */}
+                    <input type="text" className={`${inputCls('damages_amount')} pl-3`} placeholder="Enter monetary damages" value={form.damages_amount} onChange={update('damages_amount')} />
+                    {errors.damages_amount && <p className="mt-1 text-xs text-red-500 flex items-center gap-1"><AlertCircle size={12} /> {errors.damages_amount}</p>}
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <label className="block mb-1.5 text-xs font-medium text-slate-600">Evidences Available</label>
+                  <textarea rows={3} className={inputCls('evidence_summary')} placeholder="Describe any evidence (documents, screenshots, etc.)" value={form.evidence_summary} onChange={update('evidence_summary')} />
+                    {errors.evidence_summary && <p className="mt-1 text-xs text-red-500 flex items-center gap-1"><AlertCircle size={12} /> {errors.evidence_summary}</p>}
+                </div>
+                <div className="mt-4">
+                  <label className="block mb-1.5 text-xs font-medium text-slate-600">Relief Sought</label>
+                  <textarea rows={3} className={inputCls('relief_sought')} placeholder="What outcome do you seek?" value={form.relief_sought} onChange={update('relief_sought')} />
+                    {errors.relief_sought && <p className="mt-1 text-xs text-red-500 flex items-center gap-1"><AlertCircle size={12} /> {errors.relief_sought}</p>}
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="p-6 flex justify-end">
+                <button
+                  onClick={handlePreview}
+                  type="button"
+                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 shadow-sm transition"
+                >
+                  <Eye size={16} /> Preview Complaint
+                </button>
               </div>
             </div>
-
-            {/* Sidebar
-            <div className="lg:col-span-1">
-              <div className="shadow-md rounded-lg mb-6 bg-white">
-                <div className="px-4 py-3 border-b">
-                  <h3 className="text-lg">Form Progress</h3>
-                </div>
-                <div className="p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Complaint Type</span>
-                    <span className="text-xs text-gray-400">○</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Complainant Info</span>
-                    <span className="text-xs text-gray-400">○</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Respondent Info</span>
-                    <span className="text-xs text-gray-400">○</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Description</span>
-                    <span className="text-xs text-gray-400">○</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="shadow-md rounded-lg bg-white">
-                <div className="px-4 py-3 border-b">
-                  <h3 className="text-lg">Need Help?</h3>
-                </div>
-                <div className="p-4 space-y-2">
-                  <button className="border rounded px-3 py-2 w-full text-left text-sm bg-white hover:bg-gray-50">Ask AI Assistant</button>
-                  <button className="border rounded px-3 py-2 w-full text-left text-sm bg-white hover:bg-gray-50">Find Legal Help</button>
-                  <button className="border rounded px-3 py-2 w-full text-left text-sm bg-white hover:bg-gray-50">Browse Laws</button>
-                </div>
-              </div>
-            </div> */}
           </div>
         </div>
       </div>

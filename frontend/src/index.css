@@ -1,6 +1,54 @@
 /* Tailwind CDN provides base, components, and utilities at runtime. */
 /* Custom utility classes maintained here (no @tailwind or @layer). */
 
+/* ── Scroll fade-in animation ── */
+.fade-section {
+  opacity: 0;
+  transform: translateY(32px);
+  transition: opacity 0.7s cubic-bezier(.22,1,.36,1), transform 0.7s cubic-bezier(.22,1,.36,1);
+}
+.fade-section.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* stagger children inside a fade-section */
+.fade-section .fade-child { opacity: 0; transform: translateY(20px); transition: opacity 0.5s ease, transform 0.5s ease; }
+.fade-section.visible .fade-child { opacity: 1; transform: translateY(0); }
+.fade-section.visible .fade-child:nth-child(1) { transition-delay: 0.50s; }
+.fade-section.visible .fade-child:nth-child(2) { transition-delay: 0.50s; }
+.fade-section.visible .fade-child:nth-child(3) { transition-delay: 0.50s; }
+.fade-section.visible .fade-child:nth-child(4) { transition-delay: 0.50s; }
+.fade-section.visible .fade-child:nth-child(5) { transition-delay: 0.50s; }
+.fade-section.visible .fade-child:nth-child(6) { transition-delay: 0.50s; }
+
+/* ── Glassmorphism navbar ── */
+.glass-nav {
+  background: rgba(255,255,255,0.15);
+  backdrop-filter: blur(12px) saturate(160%);
+  -webkit-backdrop-filter: blur(12px) saturate(160%);
+  border-bottom: 1px solid rgba(255,255,255,0.18);
+}
+.glass-nav.scrolled {
+  background: rgba(255,255,255,0.55);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  box-shadow: 0 1px 12px rgba(0,0,0,0.06);
+  border-bottom: 1px solid rgba(148,163,184,0.18);
+}
+
+/* ── Hero floating shapes ── */
+@keyframes float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-18px) rotate(3deg); }
+}
+@keyframes floatReverse {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(14px) rotate(-3deg); }
+}
+.animate-float { animation: float 6s ease-in-out infinite; }
+.animate-float-reverse { animation: floatReverse 7s ease-in-out infinite; }
+
 .bg-gradient-subtle {
   background-image: linear-gradient(to bottom, #f0f7ff, #ffffff);
 }
