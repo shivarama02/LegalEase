@@ -1,381 +1,372 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import LawyerSidebar from '../../components/LawyerSidebar';
-import { apiUrl } from '../../api';
-import { User as UserIcon, MapPin, Phone, Mail } from 'lucide-react';
-
-// Lightweight UI primitives (to mirror UserProfile UI)
-function Card({ children, className = '' }) { return <div className={`bg-white border border-gray-200 rounded shadow-sm ${className}`}>{children}</div>; }
-function CardContent({ children, className = '' }) { return <div className={`px-6 py-5 ${className}`}>{children}</div>; }
+import { apiUrl, API_BASE } from '../../api';
+import {
+  Camera, User as UserIcon, MapPin, Phone, Mail, Briefcase,
+  Languages, IndianRupee, Star, ShieldCheck, Pencil, X, Save, Loader2,
+} from 'lucide-react';
 
 export default function LawyerProfile() {
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
-    const [lawyerId, setLawyerId] = useState(null);
-    const [lawyer, setLawyer] = useState(null);
-    const [isEditing, setIsEditing] = useState(false);
-    const [editData, setEditData] = useState({
-        lname: '',
-        email: '',
-        phone: '',
-        location: '',
-        specialization: '',
-        experience_years: '',
-        languages: '',
-        charge: '',
-        bio: '',
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [lawyerId, setLawyerId] = useState(null);
+  const [lawyer, setLawyer] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const fileInputRef = useRef(null);
+  const [editData, setEditData] = useState({
+    lname: '', email: '', phone: '', location: '',
+    specialization: '', experience_years: '', languages: '', charge: '', bio: '',
+  });
+
+  const token = sessionStorage.getItem('authToken');
+  const authHeaders = token ? { Authorization: `Token ${token}` } : {};
+
+  /* ─── Load profile ─────────────────────────────────────────────────── */
+  useEffect(() => {
+    (async () => {
+      try {
+        setLoading(true);
+        setError('');
+        const headers = { ...authHeaders };
+        const params = new URLSearchParams(window.location.search);
+        const qpId = params.get('id');
+        const storedId = qpId || sessionStorage.getItem('lawyer_id')
+          || sessionStorage.getItem('lawyerId') || sessionStorage.getItem('lawyerID');
+        const storedUsername = sessionStorage.getItem('lawyerUsername') || sessionStorage.getItem('username');
+
+        let data = null;
+        if (storedId) {
+          const res = await fetch(apiUrl(`/lawyers/${storedId}/`), { headers });
+          if (res.ok) data = await res.json();
+          else {
+            const sres = await fetch(apiUrl(`/lawyers/?search=${encodeURIComponent(storedId)}`), { headers });
+            if (sres.ok) { const d = await sres.json(); data = (Array.isArray(d) ? d : d.results || [])[0] || null; }
+          }
+        }
+        if (!data && storedUsername) {
+          const res = await fetch(apiUrl(`/lawyers/?search=${encodeURIComponent(storedUsername)}`), { headers });
+          if (res.ok) {
+            const d = await res.json();
+            const arr = Array.isArray(d) ? d : d.results || [];
+            data = arr.find(l => String(l.username).toLowerCase() === storedUsername.toLowerCase()) || arr[0] || null;
+          }
+        }
+        if (!data) { setError('Unable to load your profile. Please sign in again.'); return; }
+
+        setLawyerId(data.id);
+        try { localStorage.setItem('lawyerId', String(data.id)); localStorage.setItem('lawyer_id', String(data.id)); } catch {}
+        setLawyer(data);
+        populateEdit(data);
+      } catch (e) { setError(e.message || 'Failed to load profile'); }
+      finally { setLoading(false); }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function populateEdit(d) {
+    setEditData({
+      lname: d.lname || '', email: d.email || '', phone: d.phone || '',
+      location: d.location || '', specialization: d.specialization || '',
+      experience_years: d.experience_years ?? '', languages: d.languages || '',
+      charge: d.charge ?? '', bio: d.bio || '',
     });
+  }
 
-    useEffect(() => {
-        async function loadProfile() {
-            try {
-                setLoading(true);
-                setError('');
-                const token = sessionStorage.getItem('authToken');
-                const headers = token ? { Authorization: `Token ${token}` } : {};
-                // Resolve lawyer id from query or storage; fallback to username search
-                const params = new URLSearchParams(window.location.search);
-                const qpId = params.get('id');
-                const storedId = qpId
-                    || sessionStorage.getItem('lawyer_id')
-                    || sessionStorage.getItem('lawyerId')
-                    || sessionStorage.getItem('lawyerID');
-                const storedUsername = sessionStorage.getItem('lawyerUsername') || sessionStorage.getItem('username');
-                let lawyerData = null;
-                if (storedId) {
-                    const res = await fetch(apiUrl(`/lawyers/${storedId}/`), { headers });
-                    if (res.ok) {
-                        lawyerData = await res.json();
-                    } else {
-                        const sres = await fetch(apiUrl(`/lawyers/?search=${encodeURIComponent(storedId)}`), { headers });
-                        if (sres.ok) {
-                            const data = await sres.json();
-                            const arr = Array.isArray(data) ? data : (data.results || []);
-                            lawyerData = arr[0] || null;
-                        }
-                    }
-                }
-                if (!lawyerData && storedUsername) {
-                    const res = await fetch(apiUrl(`/lawyers/?search=${encodeURIComponent(storedUsername)}`), { headers });
-                    if (res.ok) {
-                        const data = await res.json();
-                        const arr = Array.isArray(data) ? data : (data.results || []);
-                        lawyerData = arr.find(l => String(l.username).toLowerCase() === storedUsername.toLowerCase()) || arr[0] || null;
-                    }
-                }
-                if (!lawyerData) {
-                    setError('Unable to load your profile. Please sign in again.');
-                    return;
-                }
-                setLawyerId(lawyerData.id);
-                try {
-                    localStorage.setItem('lawyerId', String(lawyerData.id));
-                    localStorage.setItem('lawyer_id', String(lawyerData.id));
-                } catch {}
-                setLawyer(lawyerData);
-                setEditData({
-                    lname: lawyerData.lname || '',
-                    email: lawyerData.email || '',
-                    phone: lawyerData.phone || '',
-                    location: lawyerData.location || '',
-                    specialization: lawyerData.specialization || '',
-                    experience_years: lawyerData.experience_years ?? '',
-                    languages: lawyerData.languages || '',
-                    charge: lawyerData.charge ?? '',
-                    bio: lawyerData.bio || '',
-                });
-            } catch (e) {
-                setError(e.message || 'Failed to load profile');
-            } finally {
-                setLoading(false);
-            }
-        }
-        loadProfile();
-    }, []);
+  /* ─── Save profile ─────────────────────────────────────────────────── */
+  async function saveChanges() {
+    if (!lawyerId) return;
+    setSaving(true); setError(''); setSuccess('');
+    try {
+      const headers = { 'Content-Type': 'application/json', ...authHeaders };
+      const payload = {
+        lname: editData.lname, email: editData.email, phone: editData.phone,
+        location: editData.location, specialization: editData.specialization,
+        experience_years: editData.experience_years === '' ? 0 : Number(editData.experience_years),
+        languages: editData.languages, charge: editData.charge === '' ? 0 : Number(editData.charge),
+        bio: editData.bio,
+      };
+      const res = await fetch(apiUrl(`/lawyers/${lawyerId}/`), { method: 'PATCH', headers, body: JSON.stringify(payload) });
+      const updated = await res.json();
+      if (!res.ok) throw new Error(updated?.detail || 'Failed to update profile');
+      setLawyer(updated);
+      setIsEditing(false);
+      setSuccess('Profile updated successfully!');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (e) { setError(e.message || 'Update failed'); }
+    finally { setSaving(false); }
+  }
 
-    // Derived
-    const fullName = (lawyer?.full_name || lawyer?.lname || lawyer?.name || 'Lawyer').trim();
-    const email = lawyer?.email || '';
-    const phone = lawyer?.phone || '';
-    const location = lawyer?.location || '';
-    const specialization = lawyer?.specialization || '';
-    const languages = lawyer?.languages || '';
-    const experienceYears = lawyer?.experience_years ?? lawyer?.experience ?? '';
-    const charge = lawyer?.charge ?? lawyer?.fee ?? lawyer?.consultation_fee ?? '';
+  /* ─── Upload photo ─────────────────────────────────────────────────── */
+  async function handlePhotoUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file || !lawyerId) return;
+    setUploading(true); setError('');
+    try {
+      const formData = new FormData();
+      formData.append('photo', file);
+      const res = await fetch(`${API_BASE}/lawyers/${lawyerId}/upload-photo/`, {
+        method: 'POST',
+        headers: authHeaders,
+        body: formData,
+      });
+      const updated = await res.json();
+      if (!res.ok) throw new Error(updated?.error || 'Upload failed');
+      setLawyer(updated);
+      setSuccess('Photo updated!');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) { setError(err.message || 'Photo upload failed'); }
+    finally { setUploading(false); if (fileInputRef.current) fileInputRef.current.value = ''; }
+  }
 
-    async function saveChanges() {
-        if (!lawyerId) return;
-        try {
-            setLoading(true);
-            setError('');
-            const token = sessionStorage.getItem('authToken');
-            const headers = {
-                'Content-Type': 'application/json',
-                ...(token ? { Authorization: `Token ${token}` } : {}),
-            };
-            const payload = {
-                lname: editData.lname,
-                email: editData.email,
-                phone: editData.phone,
-                location: editData.location,
-                specialization: editData.specialization,
-                experience_years: editData.experience_years === '' ? 0 : Number(editData.experience_years),
-                languages: editData.languages,
-                charge: editData.charge === '' ? 0 : Number(editData.charge),
-                bio: editData.bio,
-            };
-            const res = await fetch(apiUrl(`/lawyers/${lawyerId}/`), {
-                method: 'PATCH',
-                headers,
-                body: JSON.stringify(payload),
-            });
-            const updated = await res.json();
-            if (!res.ok) {
-                throw new Error(updated?.detail || 'Failed to update profile');
-            }
-            setLawyer(updated);
-            setIsEditing(false);
-        } catch (e) {
-            setError(e.message || 'Update failed');
-        } finally {
-            setLoading(false);
-        }
-    }
+  /* ─── Derived data ─────────────────────────────────────────────────── */
+  const fullName = lawyer?.full_name || lawyer?.lname || 'Lawyer';
+  const photoSrc = lawyer?.photo_full_url || lawyer?.photo_url || '';
+  const rating = Number(lawyer?.rating || 0);
+  const reviewsCount = lawyer?.reviews_count || 0;
 
-    return (
-        <div className="min-h-screen flex bg-gradient-subtle">
-            <LawyerSidebar />
-            <div className="flex-1 p-6 ">
-                <div className="max-w-5xl mx-auto space-y-6">
-                    {/* Header */}
-                    <div className="flex items-center justify-end mb-8">
-                        <div className="flex items-center space-x-2">
-                            {loading && <span className="text-sm text-gray-500">Loading…</span>}
-                            {!loading && lawyer && !isEditing && (
-                                <button
-                                    type="button"
-                                    onClick={() => setIsEditing(true)}
-                                    className="inline-flex items-center px-4 py-2 rounded bg-gradient-to-r from-indigo-600 to-indigo-500 text-white text-sm font-medium shadow"
-                                >
-                                    Edit Profile
-                                </button>
-                            )}
-                            {isEditing && (
-                                <>
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setIsEditing(false);
-                                            setEditData({
-                                                lname: lawyer?.lname || '',
-                                                email: lawyer?.email || '',
-                                                phone: lawyer?.phone || '',
-                                                location: lawyer?.location || '',
-                                                specialization: lawyer?.specialization || '',
-                                                experience_years: lawyer?.experience_years ?? '',
-                                                languages: lawyer?.languages || '',
-                                                charge: lawyer?.charge ?? '',
-                                                bio: lawyer?.bio || '',
-                                            });
-                                        }}
-                                        className="px-4 py-2 border rounded text-sm bg-white hover:bg-gray-50"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={saveChanges}
-                                        className="inline-flex items-center px-4 py-2 rounded bg-gradient-to-r from-indigo-600 to-indigo-500 text-white text-sm font-medium shadow"
-                                    >
-                                        Save Changes
-                                    </button>
-                                </>
-                            )}
-                        </div>
-                    </div>
+  const renderStars = (r) => (
+    <div className="flex items-center gap-0.5">
+      {[1, 2, 3, 4, 5].map(i => (
+        <Star key={i} size={14} className={i <= Math.round(r) ? 'fill-amber-400 text-amber-400' : 'text-slate-300'} />
+      ))}
+    </div>
+  );
 
-                    {error && <div className="mb-4 text-sm text-red-600">{error}</div>}
+  /* ─── Field helper ─────────────────────────────────────────────────── */
+  const Field = ({ label, field, type = 'text', ...rest }) => (
+    <div className="flex-1">
+      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">{label}</label>
+      {!isEditing ? (
+        <p className="text-sm font-medium text-slate-800">{
+          field === 'charge' ? (lawyer?.[field] ? `₹${Number(lawyer[field]).toLocaleString('en-IN')}` : '—')
+            : (lawyer?.[field] || '—')
+        }</p>
+      ) : (
+        <input
+          type={type}
+          className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 transition"
+          value={editData[field]}
+          onChange={e => setEditData(d => ({ ...d, [field]: e.target.value }))}
+          {...rest}
+        />
+      )}
+    </div>
+  );
 
-                    {/* Single Profile Card (UI parity with UserProfile) */}
-                    <Card className="shadow-custom-lg">
-                        {/* Gradient header with avatar */}
-                        <div className="text-center pt-8 pb-6 bg-gradient-primary">
-                            <div className="relative inline-block">
-                                <div className="w-32 h-32 bg-white/20 rounded-full flex items-center justify-center border-4 border-white/30 overflow-hidden">
-                                    <UserIcon className="h-16 w-16 text-white" />
-                                </div>
-                            </div>
-                            <h1 className="text-3xl font-bold text-white mt-4">{fullName}</h1>
-                            <p className="text-white/80 text-sm">{specialization ? `${specialization} Lawyer` : ''}</p>
-                        </div>
+  /* ─── Render ───────────────────────────────────────────────────────── */
+  return (
+    <div className="min-h-screen flex bg-slate-50">
+      <LawyerSidebar />
+      <div className="flex-1 overflow-y-auto p-4 md:p-8">
+        <div className="max-w-4xl mx-auto">
 
-                        <CardContent className="p-8">
-                            {/* Quick Info */}
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 pb-6 border-b">
-                                <div className="flex items-center space-x-3">
-                                    <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                                        <Mail className="h-5 w-5 text-primary" />
-                                    </div>
-                                    <div>
-                                        <p className="text-xs text-muted-foreground">Email</p>
-                                        <p className="text-sm font-medium break-all">{email || '—'}</p>
-                                    </div>
-                                </div>
-                                <div className="flex items-center space-x-3">
-                                    <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                                        <Phone className="h-5 w-5 text-primary" />
-                                    </div>
-                                    <div>
-                                        <p className="text-xs text-muted-foreground">Phone</p>
-                                        <p className="text-sm font-medium">{phone || '—'}</p>
-                                    </div>
-                                </div>
-                                <div className="flex items-center space-x-3">
-                                    <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                                        <MapPin className="h-5 w-5 text-primary" />
-                                    </div>
-                                    <div>
-                                        <p className="text-xs text-muted-foreground">Location</p>
-                                        <p className="text-sm font-medium truncate max-w-[220px]" title={location}>{location || '—'}</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Basic Information */}
-                            <div className="space-y-6">
-                                <div>
-                                    <h3 className="text-lg font-semibold mb-4">Basic Information</h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block mb-1 text-sm font-medium">Full Name</label>
-                                            {!isEditing ? (
-                                                <p className="text-sm font-medium">{lawyer?.lname || ''}</p>
-                                            ) : (
-                                                <input
-                                                    className="w-full border rounded px-3 py-2 text-sm"
-                                                    value={editData.lname}
-                                                    onChange={e=>setEditData(d=>({...d,lname:e.target.value}))}
-                                                />
-                                            )}
-                                        </div>
-                                        <div>
-                                            <label className="block mb-1 text-sm font-medium">Email Address</label>
-                                            {!isEditing ? (
-                                                <p className="text-sm font-medium break-all">{email || '—'}</p>
-                                            ) : (
-                                                <input
-                                                    type="email"
-                                                    className="w-full border rounded px-3 py-2 text-sm"
-                                                    value={editData.email}
-                                                    onChange={e=>setEditData(d=>({...d,email:e.target.value}))}
-                                                />
-                                            )}
-                                        </div>
-                                        <div>
-                                            <label className="block mb-1 text-sm font-medium">Phone Number</label>
-                                            {!isEditing ? (
-                                                <p className="text-sm font-medium">{phone || '—'}</p>
-                                            ) : (
-                                                <input
-                                                    className="w-full border rounded px-3 py-2 text-sm"
-                                                    value={editData.phone}
-                                                    onChange={e=>setEditData(d=>({...d,phone:e.target.value}))}
-                                                />
-                                            )}
-                                        </div>
-                                        <div>
-                                            <label className="block mb-1 text-sm font-medium">Location</label>
-                                            {!isEditing ? (
-                                                <p className="text-sm font-medium">{location || '—'}</p>
-                                            ) : (
-                                                <input
-                                                    className="w-full border rounded px-3 py-2 text-sm"
-                                                    value={editData.location}
-                                                    onChange={e=>setEditData(d=>({...d,location:e.target.value}))}
-                                                />
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Professional Information */}
-                                <div>
-                                    <h3 className="text-lg font-semibold mb-4">Professional Information</h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block mb-1 text-sm font-medium">Specialization</label>
-                                            {!isEditing ? (
-                                                <p className="text-sm font-medium">{specialization || '—'}</p>
-                                            ) : (
-                                                <input
-                                                    className="w-full border rounded px-3 py-2 text-sm"
-                                                    value={editData.specialization}
-                                                    onChange={e=>setEditData(d=>({...d,specialization:e.target.value}))}
-                                                />
-                                            )}
-                                        </div>
-                                        <div>
-                                            <label className="block mb-1 text-sm font-medium">Experience (years)</label>
-                                            {!isEditing ? (
-                                                <p className="text-sm font-medium">{experienceYears || '—'}</p>
-                                            ) : (
-                                                <input
-                                                    type="number"
-                                                    min="0"
-                                                    className="w-full border rounded px-3 py-2 text-sm"
-                                                    value={editData.experience_years}
-                                                    onChange={e=>setEditData(d=>({...d,experience_years:e.target.value}))}
-                                                />
-                                            )}
-                                        </div>
-                                        <div>
-                                            <label className="block mb-1 text-sm font-medium">Languages</label>
-                                            {!isEditing ? (
-                                                <p className="text-sm font-medium">{languages || '—'}</p>
-                                            ) : (
-                                                <input
-                                                    className="w-full border rounded px-3 py-2 text-sm"
-                                                    value={editData.languages}
-                                                    onChange={e=>setEditData(d=>({...d,languages:e.target.value}))}
-                                                    placeholder="Comma separated"
-                                                />
-                                            )}
-                                        </div>
-                                        <div>
-                                            <label className="block mb-1 text-sm font-medium">Consultation Charge</label>
-                                            {!isEditing ? (
-                                                <p className="text-sm font-medium">{charge === '' ? '—' : (String(charge).startsWith('₹') ? charge : `₹${charge}`)}</p>
-                                            ) : (
-                                                <input
-                                                    type="number"
-                                                    min="0"
-                                                    step="0.01"
-                                                    className="w-full border rounded px-3 py-2 text-sm"
-                                                    value={editData.charge}
-                                                    onChange={e=>setEditData(d=>({...d,charge:e.target.value}))}
-                                                />
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <h3 className="text-lg font-semibold mb-4">About</h3>
-                                    {!isEditing ? (
-                                        <p className="text-sm text-gray-700 leading-relaxed">{lawyer?.bio || ''}</p>
-                                    ) : (
-                                        <textarea
-                                            rows={4}
-                                            className="w-full border rounded px-3 py-2 text-sm"
-                                            value={editData.bio}
-                                            onChange={e=>setEditData(d=>({...d,bio:e.target.value}))}
-                                        />
-                                    )}
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
+          {/* Toast Messages */}
+          {success && (
+            <div className="mb-4 flex items-center gap-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl px-4 py-3 text-sm font-medium animate-fade-in">
+              <ShieldCheck size={16} /> {success}
             </div>
+          )}
+          {error && (
+            <div className="mb-4 bg-red-50 text-red-600 border border-red-200 rounded-xl px-4 py-3 text-sm font-medium">{error}</div>
+          )}
+
+          {loading && (
+            <div className="flex items-center justify-center py-20 gap-2 text-slate-400">
+              <Loader2 size={20} className="animate-spin" /> Loading…
+            </div>
+          )}
+
+          {lawyer && (
+            <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+
+              {/* ── Cover + Avatar ────────────────────────────────────── */}
+              <div className="relative h-44 md:h-52 bg-gradient-to-br from-indigo-600 via-violet-600 to-purple-600">
+                {/* Pattern overlay */}
+                <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'20\' height=\'20\' viewBox=\'0 0 20 20\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'%23fff\' fill-opacity=\'1\'%3E%3Ccircle cx=\'1\' cy=\'1\' r=\'1\'/%3E%3C/g%3E%3C/svg%3E")', backgroundSize: '20px 20px' }} />
+
+                {/* Edit / Save buttons */}
+                <div className="absolute top-4 right-4 flex gap-2 z-10">
+                  {!isEditing ? (
+                    <button
+                      onClick={() => setIsEditing(true)}
+                      className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white text-xs font-semibold px-4 py-2 rounded-xl transition"
+                    >
+                      <Pencil size={13} /> Edit Profile
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => { setIsEditing(false); populateEdit(lawyer); }}
+                        className="flex items-center gap-1 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white text-xs font-semibold px-3 py-2 rounded-xl transition"
+                      >
+                        <X size={13} /> Cancel
+                      </button>
+                      <button
+                        onClick={saveChanges}
+                        disabled={saving}
+                        className="flex items-center gap-1 bg-white hover:bg-slate-50 text-indigo-700 text-xs font-semibold px-4 py-2 rounded-xl transition shadow-sm disabled:opacity-60"
+                      >
+                        {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
+                        {saving ? 'Saving…' : 'Save'}
+                      </button>
+                    </>
+                  )}
+                </div>
+
+                {/* Verified badge */}
+                {lawyer.is_verified && (
+                  <div className="absolute top-4 left-4 flex items-center gap-1 bg-emerald-500/90 backdrop-blur-sm text-white text-xs font-semibold px-3 py-1.5 rounded-lg">
+                    <ShieldCheck size={13} /> Verified
+                  </div>
+                )}
+
+                {/* Avatar */}
+                <div className="absolute -bottom-16 left-1/2 -translate-x-1/2 md:left-10 md:translate-x-0">
+                  <div className="relative group">
+                    <div className="w-32 h-32 rounded-3xl border-4 border-white bg-white shadow-xl overflow-hidden flex items-center justify-center">
+                      {photoSrc ? (
+                        <img src={photoSrc} alt={fullName} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center">
+                          <UserIcon className="w-14 h-14 text-indigo-300" />
+                        </div>
+                      )}
+                    </div>
+                    {/* Upload overlay */}
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploading}
+                      className="absolute inset-0 rounded-3xl bg-black/0 group-hover:bg-black/40 flex items-center justify-center transition-all cursor-pointer"
+                    >
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center text-white">
+                        {uploading ? <Loader2 size={22} className="animate-spin" /> : <Camera size={22} />}
+                        <span className="text-[10px] font-semibold mt-1">{uploading ? 'Uploading…' : 'Change Photo'}</span>
+                      </div>
+                    </button>
+                    <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Body ──────────────────────────────────────────────── */}
+              <div className="pt-20 md:pt-6 md:pl-48 px-6 md:px-8 pb-8">
+
+                {/* Name row */}
+                <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-2 mb-6">
+                  <div>
+                    <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900">{fullName}</h1>
+                    <p className="text-lg font-semibold text-indigo-600 mt-0.5">{lawyer.specialization || 'General Practice'}</p>
+                  </div>
+                  {/* Mini stats */}
+                  <div className="flex items-center gap-4 flex-wrap">
+                    <div className="flex items-center gap-1.5">
+                      {renderStars(rating)}
+                      <span className="text-sm font-bold text-slate-800 ml-1">{rating.toFixed(1)}</span>
+                      <span className="text-xs text-slate-400">({reviewsCount})</span>
+                    </div>
+                    <span className="hidden sm:block w-px h-5 bg-slate-200" />
+                    <div className="flex items-center gap-1 text-sm text-slate-600">
+                      <Briefcase size={13} className="text-slate-400" />
+                      {lawyer.experience_years || 0} yrs
+                    </div>
+                    <span className="hidden sm:block w-px h-5 bg-slate-200" />
+                    <div className="flex items-center gap-1 text-sm text-slate-600">
+                      <MapPin size={13} className="text-slate-400" />
+                      {lawyer.location || '—'}
+                    </div>
+                  </div>
+                </div>
+
+                <hr className="border-slate-100 mb-6" />
+
+                {/* ── About ──────────────────────────────────────────── */}
+                <div className="mb-6">
+                  <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-2">About</h2>
+                  {!isEditing ? (
+                    <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-line">{lawyer.bio || 'No bio added yet.'}</p>
+                  ) : (
+                    <textarea
+                      rows={4}
+                      className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 transition resize-none"
+                      value={editData.bio}
+                      onChange={e => setEditData(d => ({ ...d, bio: e.target.value }))}
+                    />
+                  )}
+                </div>
+
+                <hr className="border-slate-100 mb-6" />
+
+                {/* ── Contact Grid ────────────────────────────────────── */}
+                <div className="mb-6">
+                  <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4">Contact Information</h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
+                    <div className="flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <Mail size={15} className="text-indigo-500" />
+                      </div>
+                      <Field label="Email" field="email" type="email" />
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <Phone size={15} className="text-indigo-500" />
+                      </div>
+                      <Field label="Phone" field="phone" />
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <MapPin size={15} className="text-indigo-500" />
+                      </div>
+                      <Field label="Location" field="location" />
+                    </div>
+                  </div>
+                </div>
+
+                <hr className="border-slate-100 mb-6" />
+
+                {/* ── Professional Info Grid ──────────────────────────── */}
+                <div>
+                  <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4">Professional Details</h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
+                    <div className="flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-violet-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <UserIcon size={15} className="text-violet-500" />
+                      </div>
+                      <Field label="Full Name" field="lname" />
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-violet-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <Briefcase size={15} className="text-violet-500" />
+                      </div>
+                      <Field label="Specialization" field="specialization" />
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-violet-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <Briefcase size={15} className="text-violet-500" />
+                      </div>
+                      <Field label="Experience (years)" field="experience_years" type="number" min="0" />
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-violet-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <Languages size={15} className="text-violet-500" />
+                      </div>
+                      <Field label="Languages" field="languages" placeholder="Comma separated" />
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-violet-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <IndianRupee size={15} className="text-violet-500" />
+                      </div>
+                      <Field label="Consultation Charge (₹)" field="charge" type="number" min="0" step="0.01" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
-    );
+      </div>
+    </div>
+  );
 }

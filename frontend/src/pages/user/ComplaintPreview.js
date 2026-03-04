@@ -136,7 +136,7 @@ export default function ComplaintPreview() {
       <div className="flex min-h-screen">
         <UserSidebar />
         <div className="flex-1 overflow-y-auto p-6">
-          <div className="max-w-4xl mx-auto">
+          <div className="max-w-5xl mx-auto">
 
             {/* Back */}
             <button onClick={() => navigate(-1)} className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-indigo-600 transition mb-4">

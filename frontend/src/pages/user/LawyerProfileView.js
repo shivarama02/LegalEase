@@ -2,10 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import UserSidebar from '../../components/UserSidebar';
 import { apiUrl } from '../../api';
-import { requestChat } from '../../services/chatApi';
+import { requestChat, getMyRooms } from '../../services/chatApi';
 import {
   ArrowLeft, ShieldCheck, Star, MapPin, Phone, Mail,
-  Briefcase, Languages, IndianRupee, MessageSquare, CalendarPlus, Loader2,
+  Briefcase, Languages, IndianRupee, MessageSquare, CalendarPlus, Loader2, Send, Clock,
 } from 'lucide-react';
 
 export default function LawyerProfileView() {
@@ -14,8 +14,10 @@ export default function LawyerProfileView() {
   const [lawyer, setLawyer] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [roomId, setRoomId] = useState(null);
+  const [room, setRoom] = useState(null);       // full room object for this lawyer
+  const [requesting, setRequesting] = useState(false);
 
+  /* ─── Load lawyer data ──────────────────────────────────────────── */
   useEffect(() => {
     const controller = new AbortController();
     (async () => {
@@ -35,22 +37,45 @@ export default function LawyerProfileView() {
     return () => controller.abort();
   }, [id]);
 
+  /* ─── Check if a room already exists with this lawyer ────────────── */
   useEffect(() => {
     if (!lawyer?.id) return;
     let cancelled = false;
     (async () => {
       try {
-        const room = await requestChat(lawyer.id);
+        const rooms = await getMyRooms();
         if (cancelled) return;
-        setRoomId(room.room_id || room.id || null);
+        const arr = Array.isArray(rooms) ? rooms : [];
+        // Find room matching this lawyer
+        const existing = arr.find(
+          (r) => String(r.lawyer_id) === String(lawyer.id)
+        );
+        setRoom(existing || null);
       } catch (_) {
-        // non-fatal: chat can still be opened manually later
+        // non-fatal
       }
     })();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [lawyer?.id]);
+
+  /* ─── Request chat action ───────────────────────────────────────── */
+  const handleRequestChat = async () => {
+    if (!lawyer?.id) return;
+    setRequesting(true);
+    try {
+      const newRoom = await requestChat(lawyer.id);
+      setRoom(newRoom);
+    } catch (err) {
+      alert(err.message || 'Failed to send chat request');
+    } finally {
+      setRequesting(false);
+    }
+  };
+
+  /* ─── Open existing chat ────────────────────────────────────────── */
+  const handleOpenChat = () => {
+    navigate('/user/chat', { state: { lawyerId: lawyer.id, roomId: room?.id } });
+  };
 
   const renderStars = (rating) => {
     const r = Number(rating || 0);
@@ -94,8 +119,8 @@ export default function LawyerProfileView() {
                   {/* ── Left — Profile Photo ───────────────────────────────── */}
                   <div className="md:w-80 flex-shrink-0 bg-gradient-to-br from-indigo-50 to-violet-50 flex items-center justify-center p-8 md:p-10">
                     <div className="w-52 h-52 md:w-56 md:h-56 rounded-3xl bg-white shadow-lg border border-slate-100 overflow-hidden flex items-center justify-center">
-                      {lawyer.photo_url ? (
-                        <img src={lawyer.photo_url} alt={lawyer.full_name || lawyer.lname} className="h-full w-full object-cover" />
+                      {(lawyer.photo_full_url || lawyer.photo_url) ? (
+                        <img src={lawyer.photo_full_url || lawyer.photo_url} alt={lawyer.full_name || lawyer.lname} className="h-full w-full object-cover" />
                       ) : (
                         <span className="text-7xl font-bold text-indigo-300 select-none">
                           {(lawyer.full_name || lawyer.lname || '?').charAt(0).toUpperCase()}
@@ -231,13 +256,37 @@ export default function LawyerProfileView() {
                         <CalendarPlus size={15} />
                         Book Appointment
                       </button>
-                      <button
-                        onClick={() => navigate('/user/chat', { state: { lawyerId: lawyer.id, roomId } })}
-                        className="flex items-center justify-center gap-2 border-2 border-indigo-200 text-indigo-700 hover:bg-indigo-50 px-6 py-2.5 rounded-2xl font-semibold transition text-sm"
-                      >
-                        <MessageSquare size={15} />
-                        Chat
-                      </button>
+
+                      {/* Chat button — dynamic based on room status */}
+                      {room?.status === 'active' ? (
+                        <button
+                          onClick={handleOpenChat}
+                          className="flex items-center justify-center gap-2 bg-emerald-50 border-2 border-emerald-200 text-emerald-700 hover:bg-emerald-100 px-6 py-2.5 rounded-2xl font-semibold transition text-sm"
+                        >
+                          <MessageSquare size={15} />
+                          Chat
+                        </button>
+                      ) : room?.status === 'pending' ? (
+                        <button
+                          disabled
+                          className="flex items-center justify-center gap-2 bg-amber-50 border-2 border-amber-200 text-amber-600 px-6 py-2.5 rounded-2xl font-semibold text-sm cursor-not-allowed opacity-80"
+                        >
+                          <Clock size={15} />
+                          Request Pending
+                        </button>
+                      ) : (
+                        <button
+                          onClick={handleRequestChat}
+                          disabled={requesting}
+                          className="flex items-center justify-center gap-2 border-2 border-indigo-200 text-indigo-700 hover:bg-indigo-50 px-6 py-2.5 rounded-2xl font-semibold transition text-sm disabled:opacity-60"
+                        >
+                          {requesting ? (
+                            <><Loader2 size={15} className="animate-spin" /> Requesting…</>
+                          ) : (
+                            <><Send size={15} /> Request Chat</>
+                          )}
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

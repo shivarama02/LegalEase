@@ -23,6 +23,25 @@ export default function LawyerDirectory() {
 	const [minExperience, setMinExperience] = useState(0);
 	const [showFilters, setShowFilters] = useState(false);
 
+	// Dynamic filter options fetched from DB
+	const [specializations, setSpecializations] = useState(['All Specializations']);
+	const [locations, setLocations] = useState(['All Locations']);
+
+	useEffect(() => {
+		fetch(apiUrl('/lawyers/filter-options/'))
+			.then((r) => r.ok ? r.json() : null)
+			.then((data) => {
+				if (!data) return;
+				if (data.specializations?.length) {
+					setSpecializations(['All Specializations', ...data.specializations]);
+				}
+				if (data.locations?.length) {
+					setLocations(['All Locations', ...data.locations]);
+				}
+			})
+			.catch(() => {});
+	}, []);
+
 	const ordering = useMemo(() => {
 		switch (sortBy) {
 			case 'Experience':
@@ -94,25 +113,6 @@ export default function LawyerDirectory() {
 		setMinExperience(0);
 	};
 
-	const specializations = [
-		'All Specializations',
-		'Consumer Law',
-		'Employment Law',
-		'Family Law',
-		'Property Law',
-		'Criminal Law',
-		'Civil Law',
-	];
-	const locations = [
-		'All Locations',
-		'Mumbai',
-		'Delhi',
-		'Bangalore',
-		'Ahmedabad',
-		'Hyderabad',
-		'Chennai',
-	];
-
 	const ratingOptions = [
 		{ label: 'Any Rating', value: 0 },
 		{ label: '4+ Stars', value: 4 },
@@ -130,17 +130,17 @@ export default function LawyerDirectory() {
 
 	const pricePresets = [
 		{ label: 'Any Price', min: 0, max: 50000 },
-		{ label: 'Under ₹500/hr', min: 0, max: 500 },
-		{ label: '₹500 – ₹2,000/hr', min: 500, max: 2000 },
-		{ label: '₹2,000 – ₹5,000/hr', min: 2000, max: 5000 },
-		{ label: '₹5,000+/hr', min: 5000, max: 50000 },
+		{ label: 'Under ₹500', min: 0, max: 500 },
+		{ label: '₹500 – ₹2,000', min: 500, max: 2000 },
+		{ label: '₹2,000 – ₹5,000', min: 2000, max: 5000 },
+		{ label: '₹5,000+', min: 5000, max: 50000 },
 	];
 
 	const formatFee = (charge) => {
 		if (charge === null || charge === undefined || charge === '') return 'N/A';
 		const num = Number(charge);
 		if (Number.isNaN(num)) return String(charge);
-		return `₹${num.toLocaleString('en-IN')}/hr`;
+		return `₹${num.toLocaleString('en-IN')}`;
 	};
 
 	const renderStars = (rating) => {

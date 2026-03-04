@@ -20,6 +20,11 @@ from .views import (
     accept_chat_request,
     get_chat_messages,
     get_my_chat_rooms,
+    clear_chat_messages,
+    delete_chat_room,
+    upload_lawyer_photo,
+    lawyer_filter_options,
+    upload_client_photo,
 )
 
 router = DefaultRouter()
@@ -37,7 +42,12 @@ urlpatterns = [
     path('chat/create-room/<int:lawyer_id>/', create_or_get_chat_room, name='create_chat_room'),
     path('chat/accept/<int:room_id>/', accept_chat_request, name='accept_chat_request'),
     path('chat/messages/<int:room_id>/', get_chat_messages, name='get_chat_messages'),
+    path('chat/messages/<int:room_id>/clear/', clear_chat_messages, name='clear_chat_messages'),
+    path('chat/room/<int:room_id>/delete/', delete_chat_room, name='delete_chat_room'),
     path('chat/my-rooms/', get_my_chat_rooms, name='get_my_chat_rooms'),
+    path('lawyers/<int:lawyer_id>/upload-photo/', upload_lawyer_photo, name='upload_lawyer_photo'),
+    path('lawyers/filter-options/', lawyer_filter_options, name='lawyer_filter_options'),
+    path('clients/<int:client_id>/upload-photo/', upload_client_photo, name='upload_client_photo'),
     # Place specific paths BEFORE including router to avoid being captured by router detail routes
     path('complaints/pdf/', generate_complaint_pdf, name='generate_complaint_pdf'),
     # Optional: support without trailing slash to avoid 301 on POST if APPEND_SLASH behavior varies

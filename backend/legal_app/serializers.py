@@ -13,13 +13,23 @@ class LawInfoSerializer(serializers.ModelSerializer):
 
 
 class ClientSerializer(serializers.ModelSerializer):
+    photo_full_url = serializers.SerializerMethodField(read_only=True)
+
     class Meta:
         model = Client
         fields = [
             'id', 'user', 'cname', 'email', 'phone', 'dob', 'address', 'username',
-            'created_at', 'updated_at'
+            'photo', 'photo_full_url', 'created_at', 'updated_at'
         ]
         read_only_fields = ['user', 'username', 'created_at', 'updated_at']
+
+    def get_photo_full_url(self, obj):
+        request = self.context.get('request')
+        if obj.photo and hasattr(obj.photo, 'url'):
+            if request:
+                return request.build_absolute_uri(obj.photo.url)
+            return obj.photo.url
+        return ''
 
     def validate_phone(self, value):
         if value and not value.isdigit():
@@ -33,6 +43,7 @@ class LawyerSerializer(serializers.ModelSerializer):
     reviews_count = serializers.SerializerMethodField(read_only=True)
     # Django User ID — used by the frontend for presence tracking
     user_id = serializers.IntegerField(source='user.id', read_only=True)
+    photo_full_url = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Lawyer
@@ -40,13 +51,22 @@ class LawyerSerializer(serializers.ModelSerializer):
             'id', 'user_id', 'full_name', 'lname', 'email', 'phone', 'specialization',
             'experience_years', 'location', 'charge', 'username', 'lawyer_id',
             'rating', 'reviews_count', 'languages', 'bio', 'is_verified',
-            'photo_url', 'created_at', 'updated_at',
+            'photo_url', 'photo', 'photo_full_url', 'created_at', 'updated_at',
         ]
         read_only_fields = ['rating', 'reviews_count', 'created_at', 'updated_at']
 
     def get_full_name(self, obj):
         # If model later adds first/last name, adapt this.
         return obj.lname
+
+    def get_photo_full_url(self, obj):
+        """Return absolute URL for the uploaded photo, or fall back to photo_url."""
+        request = self.context.get('request')
+        if obj.photo and hasattr(obj.photo, 'url'):
+            if request:
+                return request.build_absolute_uri(obj.photo.url)
+            return obj.photo.url
+        return obj.photo_url or ''
 
     def validate_experience_years(self, value):
         if value < 0:
@@ -230,13 +250,33 @@ class AppointmentSerializer(serializers.ModelSerializer):
 
 
 class FeedbackSerializer(serializers.ModelSerializer):
+    lawyer_name = serializers.SerializerMethodField(read_only=True)
+    lawyer_specialization = serializers.SerializerMethodField(read_only=True)
+    client_name = serializers.SerializerMethodField(read_only=True)
+
     class Meta:
         model = Feedback
         fields = [
             'id', 'user', 'feedback_type', 'rating', 'name', 'email', 'subject', 'message', 'lawyer',
+            'lawyer_name', 'lawyer_specialization', 'client_name',
             'created_at', 'updated_at'
         ]
         read_only_fields = ['user', 'created_at', 'updated_at']
+        extra_kwargs = {
+            'name': {'required': False, 'allow_blank': True},
+            'email': {'required': False, 'allow_blank': True},
+        }
+
+    def get_lawyer_name(self, obj):
+        return obj.lawyer.lname if obj.lawyer else None
+
+    def get_lawyer_specialization(self, obj):
+        return obj.lawyer.specialization if obj.lawyer else None
+
+    def get_client_name(self, obj):
+        if obj.user and hasattr(obj.user, 'client_profile'):
+            return obj.user.client_profile.cname
+        return obj.name or (obj.user.get_full_name() if obj.user else None)
 
     def validate_rating(self, value):
         if not (1 <= int(value) <= 5):

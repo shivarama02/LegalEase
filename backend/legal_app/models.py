@@ -24,6 +24,7 @@ class Client(models.Model):
     dob = models.DateField(blank=True, null=True)
     address = models.TextField(blank=True, null=True)
     username = models.CharField(max_length=100, unique=True)
+    photo = models.ImageField(upload_to='client_photos/', blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)   # added
     updated_at = models.DateTimeField(auto_now=True)       # added
 
@@ -49,6 +50,7 @@ class Lawyer(models.Model):
     bio = models.TextField(blank=True)
     is_verified = models.BooleanField(default=False)
     photo_url = models.URLField(blank=True)
+    photo = models.ImageField(upload_to='lawyer_photos/', blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)   # added
     updated_at = models.DateTimeField(auto_now=True)       # added
 
@@ -235,8 +237,8 @@ class Feedback(models.Model):
     user = models.ForeignKey(User, related_name='feedbacks', on_delete=models.SET_NULL, null=True, blank=True)
     feedback_type = models.CharField(max_length=20, choices=FEEDBACK_TYPES)
     rating = models.PositiveSmallIntegerField(help_text="Overall rating 1-5")
-    name = models.CharField(max_length=150)
-    email = models.EmailField()
+    name = models.CharField(max_length=150, blank=True)
+    email = models.EmailField(blank=True, default='')
     subject = models.CharField(max_length=255, blank=True)
     message = models.TextField()
     # Optional linkage if feedback is about a specific lawyer

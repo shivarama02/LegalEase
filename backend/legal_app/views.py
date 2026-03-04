@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
 from django.contrib.auth.models import User
 from django_filters.rest_framework import DjangoFilterBackend
+import django_filters
 from django.contrib.auth import authenticate
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -67,6 +68,11 @@ class ClientViewSet(viewsets.ModelViewSet):
     filterset_fields = ['dob']
     permission_classes = [IsAuthenticated]
 
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        ctx['request'] = self.request
+        return ctx
+
     def get_queryset(self):
         qs = super().get_queryset()
         user = self.request.user if self.request.user.is_authenticated else None
@@ -119,13 +125,92 @@ class ClientViewSet(viewsets.ModelViewSet):
         serializer.save(user=self.request.user)
 
 
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def upload_client_photo(request, client_id):
+    """Upload or replace the profile photo for a client."""
+    try:
+        client = Client.objects.select_related('user').get(id=client_id)
+    except Client.DoesNotExist:
+        return Response({'error': 'Client not found'}, status=404)
+    if client.user != request.user:
+        return Response({'error': 'Unauthorized'}, status=403)
+    photo_file = request.FILES.get('photo')
+    if not photo_file:
+        return Response({'error': 'No photo file provided'}, status=400)
+    if client.photo:
+        client.photo.delete(save=False)
+    client.photo = photo_file
+    client.save(update_fields=['photo'])
+    serializer = ClientSerializer(client, context={'request': request})
+    return Response(serializer.data)
+
+
+class LawyerFilter(django_filters.FilterSet):
+    specialization = django_filters.CharFilter(field_name='specialization', lookup_expr='iexact')
+    location = django_filters.CharFilter(field_name='location', lookup_expr='iexact')
+    is_verified = django_filters.BooleanFilter(field_name='is_verified')
+
+    class Meta:
+        model = Lawyer
+        fields = ['specialization', 'location', 'is_verified']
+
+
 class LawyerViewSet(viewsets.ModelViewSet):
     queryset = Lawyer.objects.all().order_by('-rating', '-reviews_count', '-experience_years')
     serializer_class = LawyerSerializer
     filter_backends = [filters.SearchFilter, DjangoFilterBackend, filters.OrderingFilter]
     search_fields = ['lname', 'email', 'specialization', 'location', 'languages']
-    filterset_fields = ['specialization', 'location', 'is_verified']
+    filterset_class = LawyerFilter
     ordering_fields = ['experience_years', 'charge', 'rating', 'reviews_count']
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def lawyer_filter_options(request):
+    """Return distinct non-empty specializations and locations from the Lawyer table."""
+    specs = (
+        Lawyer.objects.exclude(specialization='')
+        .values_list('specialization', flat=True)
+        .distinct()
+        .order_by('specialization')
+    )
+    locs = (
+        Lawyer.objects.exclude(location='')
+        .values_list('location', flat=True)
+        .distinct()
+        .order_by('location')
+    )
+    return Response({
+        'specializations': list(specs),
+        'locations': list(locs),
+    })
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def upload_lawyer_photo(request, lawyer_id):
+    """Upload or replace the profile photo for a lawyer. Only the lawyer themselves can do this."""
+    try:
+        lawyer = Lawyer.objects.select_related('user').get(id=lawyer_id)
+    except Lawyer.DoesNotExist:
+        return Response({'error': 'Lawyer not found'}, status=404)
+
+    if lawyer.user != request.user:
+        return Response({'error': 'Unauthorized'}, status=403)
+
+    photo_file = request.FILES.get('photo')
+    if not photo_file:
+        return Response({'error': 'No photo file provided'}, status=400)
+
+    # Delete old file if exists
+    if lawyer.photo:
+        lawyer.photo.delete(save=False)
+
+    lawyer.photo = photo_file
+    lawyer.save(update_fields=['photo'])
+    serializer = LawyerSerializer(lawyer, context={'request': request})
+    return Response(serializer.data)
 
 
 class LawDetailViewSet(viewsets.ModelViewSet):
@@ -202,13 +287,33 @@ class FeedbackViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         qs = super().get_queryset()
         user = self.request.user if self.request.user.is_authenticated else None
-        # Users see only their own feedback
-        if user and not getattr(user, 'is_staff', False):
-            return qs.filter(user=user)
-        return qs
+        if not user:
+            return qs.none()
+        if getattr(user, 'is_staff', False):
+            return qs
+        # Lawyers can see feedback addressed to them
+        if hasattr(user, 'lawyer_profile'):
+            return qs.filter(lawyer=user.lawyer_profile)
+        # Regular users see only their own feedback
+        return qs.filter(user=user)
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        user = self.request.user
+        # Auto-fill name and email from the user's profile
+        name = ''
+        email = user.email or ''
+        if hasattr(user, 'client_profile'):
+            name = user.client_profile.cname or ''
+            email = email or user.client_profile.email or ''
+        elif hasattr(user, 'lawyer_profile'):
+            name = user.lawyer_profile.lname or ''
+            email = email or user.lawyer_profile.email or ''
+        save_kwargs = {'user': user}
+        if not serializer.validated_data.get('name'):
+            save_kwargs['name'] = name
+        if not serializer.validated_data.get('email'):
+            save_kwargs['email'] = email
+        serializer.save(**save_kwargs)
 
 
 class ClientSignupView(APIView):
@@ -478,5 +583,51 @@ def get_my_chat_rooms(request):
 
     serializer = ChatRoomSerializer(rooms, many=True)
     return Response(serializer.data)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def clear_chat_messages(request, room_id):
+    """
+    Deletes all messages in a room.
+    Only the client or lawyer of that room can do this.
+    """
+    user = request.user
+    try:
+        room = ChatRoom.objects.select_related('lawyer', 'lawyer__user').get(id=room_id)
+    except ChatRoom.DoesNotExist:
+        return Response({"error": "Room not found"}, status=404)
+
+    lawyer_user = getattr(room.lawyer, 'user', None)
+    if room.client != user and lawyer_user != user:
+        return Response({"error": "Unauthorized"}, status=403)
+
+    room.messages.all().delete()
+    # Reset the preview fields on the room
+    room.last_message = ''
+    room.last_message_at = None
+    room.save(update_fields=['last_message', 'last_message_at'])
+    return Response({"detail": "Messages cleared"}, status=200)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_chat_room(request, room_id):
+    """
+    Permanently deletes the chat room and all its messages.
+    Only the client or lawyer of that room can do this.
+    """
+    user = request.user
+    try:
+        room = ChatRoom.objects.select_related('lawyer', 'lawyer__user').get(id=room_id)
+    except ChatRoom.DoesNotExist:
+        return Response({"error": "Room not found"}, status=404)
+
+    lawyer_user = getattr(room.lawyer, 'user', None)
+    if room.client != user and lawyer_user != user:
+        return Response({"error": "Unauthorized"}, status=403)
+
+    room.delete()
+    return Response({"detail": "Chat deleted"}, status=200)
 
 

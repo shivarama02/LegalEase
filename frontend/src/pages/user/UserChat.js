@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import { Search, MessageSquare, Clock, Send, Scale, Users, ChevronRight, Loader2 } from "lucide-react";
+import { Search, MessageSquare, Clock, Scale, ChevronRight, Loader2 } from "lucide-react";
 import ChatWindow from "../../components/ChatWindow";
 import UserSidebar from "../../components/UserSidebar";
-import { requestChat, getMyRooms, getAllLawyers } from "../../services/chatApi";
+import { getMyRooms } from "../../services/chatApi";
 import { connectPresenceSocket } from "../../services/presenceSocket";
 
 /**
@@ -15,13 +15,10 @@ import { connectPresenceSocket } from "../../services/presenceSocket";
  *   4. ChatWindow unlocks for both sides
  */
 export default function UserChat() {
-  const [lawyers, setLawyers]           = useState([]);
   const [rooms, setRooms]               = useState([]);
   const [selectedRoom, setSelectedRoom] = useState(null);
-  const [loadingLawyers, setLoadingLawyers] = useState(true);
-  const [requestingId, setRequestingId] = useState(null); // lawyerId being requested
   const [search, setSearch]             = useState("");
-  const [activeTab, setActiveTab]       = useState("chats"); // "chats" | "pending" | "lawyers"
+  const [activeTab, setActiveTab]       = useState("chats"); // "chats" | "pending"
   const [onlineUsers, setOnlineUsers]   = useState(new Set());
 
   const [myUserId]             = useState(() => sessionStorage.getItem("authUserId") ?? "");
@@ -46,15 +43,11 @@ export default function UserChat() {
   // ─── load data ────────────────────────────────────────────────────────────
 
   const loadData = useCallback(async () => {
-    setLoadingLawyers(true);
     try {
-      const [lawyerRes, roomRes] = await Promise.allSettled([getAllLawyers(), getMyRooms()]);
-      if (lawyerRes.status === "fulfilled")
-        setLawyers(Array.isArray(lawyerRes.value) ? lawyerRes.value : lawyerRes.value?.results ?? []);
-      if (roomRes.status === "fulfilled")
-        setRooms(Array.isArray(roomRes.value) ? roomRes.value : []);
-    } finally {
-      setLoadingLawyers(false);
+      const data = await getMyRooms();
+      setRooms(Array.isArray(data) ? data : []);
+    } catch {
+      // keep stale data on error
     }
   }, []);
 
@@ -68,40 +61,6 @@ export default function UserChat() {
 
   const activeRooms  = rooms.filter((r) => r.status === "active");
   const pendingRooms = rooms.filter((r) => r.status === "pending");
-  const roomByLawyerId = Object.fromEntries(rooms.map((r) => [String(r.lawyer_id), r]));
-
-  // ─── actions ──────────────────────────────────────────────────────────────
-
-  const handleLawyerClick = useCallback(async (lawyer) => {
-    const existing = roomByLawyerId[String(lawyer.id)];
-
-    // Active → open chat immediately
-    if (existing?.status === "active") {
-      setSelectedRoom(existing);
-      setActiveTab("chats");
-      return;
-    }
-
-    // Pending → switch to pending tab and highlight
-    if (existing?.status === "pending") {
-      setSelectedRoom(existing);
-      setActiveTab("pending");
-      return;
-    }
-
-    // No room yet → send chat request
-    setRequestingId(lawyer.id);
-    try {
-      const room = await requestChat(lawyer.id);
-      setRooms((prev) => [room, ...prev]);
-      setSelectedRoom(room);
-      setActiveTab("pending");
-    } catch {
-      // silently ignore, user can retry
-    } finally {
-      setRequestingId(null);
-    }
-  }, [roomByLawyerId]);
 
   // ─── helpers ──────────────────────────────────────────────────────────────
 
@@ -119,10 +78,6 @@ export default function UserChat() {
 
   const filteredActive  = activeRooms.filter((r) => (r.lawyer_name || "").toLowerCase().includes(search.toLowerCase()));
   const filteredPending = pendingRooms.filter((r) => (r.lawyer_name || "").toLowerCase().includes(search.toLowerCase()));
-  const filteredLawyers = lawyers.filter((l) =>
-    (l.lname || "").toLowerCase().includes(search.toLowerCase()) ||
-    (l.specialization || "").toLowerCase().includes(search.toLowerCase())
-  );
 
   const participantName = selectedRoom?.lawyer_name ?? "";
 
@@ -133,7 +88,9 @@ export default function UserChat() {
       <UserSidebar />
 
       {/* ── Conversation Panel ─────────────────────────────────────────── */}
-      <div className="w-[320px] flex-shrink-0 flex flex-col bg-white shadow-md z-10">
+      <div className={`${
+        selectedRoom ? "hidden md:flex" : "flex"
+      } w-full md:w-[320px] flex-shrink-0 flex-col bg-white shadow-md z-10`}>
 
         {/* Header */}
         <div className="px-5 py-4 bg-gradient-to-r from-indigo-600 to-violet-600 text-white">
@@ -151,7 +108,7 @@ export default function UserChat() {
             <Search size={13} className="text-white/70 flex-shrink-0" />
             <input
               type="text"
-              placeholder={activeTab === "lawyers" ? "Search lawyers…" : "Search…"}
+              placeholder="Search…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="flex-1 text-sm outline-none bg-transparent text-white placeholder-white/50"
@@ -164,7 +121,6 @@ export default function UserChat() {
           {[
             { key: "chats",   label: "Chats",   count: activeRooms.length  },
             { key: "pending", label: "Pending", count: pendingRooms.length, warn: true },
-            { key: "lawyers", label: "Lawyers", count: null },
           ].map(({ key, label, count, warn }) => (
             <button
               key={key}
@@ -269,62 +225,11 @@ export default function UserChat() {
             </>
           )}
 
-          {/* ALL LAWYERS */}
-          {activeTab === "lawyers" && (
-            <>
-              {loadingLawyers && (
-                <div className="flex items-center justify-center py-12 text-slate-400 gap-2">
-                  <Loader2 size={16} className="animate-spin" />
-                  <span className="text-sm">Loading lawyers…</span>
-                </div>
-              )}
-              {!loadingLawyers && filteredLawyers.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-16 text-slate-400 select-none">
-                  <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mb-3">
-                    <Users size={24} className="text-slate-300" />
-                  </div>
-                  <p className="text-sm font-semibold text-slate-600">No lawyers found</p>
-                </div>
-              )}
-              {filteredLawyers.map((lawyer) => {
-                const room     = roomByLawyerId[String(lawyer.id)];
-                const status   = room?.status;
-                const isReqing = requestingId === lawyer.id;
-                const online   = onlineUsers.has(String(lawyer.user_id));
-                return (
-                  <button key={lawyer.id} onClick={() => handleLawyerClick(lawyer)} disabled={isReqing}
-                    className="w-full flex items-center gap-3 px-4 py-3 border-b border-slate-100 hover:bg-slate-50 transition text-left disabled:opacity-60">
-                    <div className="relative flex-shrink-0">
-                      <div className="w-11 h-11 rounded-2xl bg-violet-100 flex items-center justify-center font-bold text-violet-700 text-sm select-none">
-                        {(lawyer.lname || "L").charAt(0).toUpperCase()}
-                      </div>
-                      <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white
-                        ${online ? "bg-emerald-400" : "bg-slate-300"}`} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sm text-slate-800 truncate">{lawyer.lname || "Lawyer"}</p>
-                      <p className="text-xs text-slate-400 truncate mt-0.5">{lawyer.specialization || "General Practice"}</p>
-                    </div>
-                    {isReqing ? (
-                      <Loader2 size={14} className="animate-spin text-indigo-400 flex-shrink-0" />
-                    ) : status === "active" ? (
-                      <span className="text-[10px] font-semibold bg-emerald-100 text-emerald-700 px-2 py-1 rounded-lg flex-shrink-0">Open</span>
-                    ) : status === "pending" ? (
-                      <span className="text-[10px] font-semibold bg-amber-100 text-amber-600 px-2 py-1 rounded-lg flex-shrink-0">Pending</span>
-                    ) : (
-                      <span className="text-[10px] font-semibold bg-indigo-50 text-indigo-600 px-2 py-1 rounded-lg flex-shrink-0 flex items-center gap-0.5">
-                        <Send size={9} /> Request
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </>
-          )}
         </div>
       </div>
 
       {/* ── Right Panel ───────────────────────────────────────────────────── */}
+      <div className={`${selectedRoom ? "flex" : "hidden md:flex"} flex-1 flex-col`}>
       {selectedRoom?.status === "active" ? (
         <ChatWindow
           room={selectedRoom}
@@ -335,6 +240,14 @@ export default function UserChat() {
         />
       ) : selectedRoom?.status === "pending" ? (
         <div className="flex-1 flex flex-col items-center justify-center bg-slate-50 px-8">
+          {/* Mobile back button */}
+          <button
+            onClick={() => setSelectedRoom(null)}
+            className="md:hidden self-start mb-4 flex items-center gap-1.5 text-sm text-slate-500 hover:text-indigo-600 transition"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
+            Back
+          </button>
           <div className="bg-white rounded-3xl shadow-xl border border-slate-100 p-10 max-w-md w-full text-center">
             <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-amber-400 to-orange-400 flex items-center justify-center mx-auto mb-5 shadow-lg shadow-amber-100">
               <Clock size={34} className="text-white" />
@@ -358,9 +271,10 @@ export default function UserChat() {
             <MessageSquare size={40} className="text-indigo-400" />
           </div>
           <p className="text-lg font-bold text-slate-700">Start a Conversation</p>
-          <p className="text-sm text-slate-400 mt-1 max-w-xs text-center">Browse the Lawyers tab to find and request a consultation</p>
+          <p className="text-sm text-slate-400 mt-1 max-w-xs text-center">Select a chat from the sidebar to start</p>
         </div>
       )}
+      </div>
     </div>
   );
 }

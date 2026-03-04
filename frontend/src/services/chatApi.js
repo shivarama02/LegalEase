@@ -77,3 +77,35 @@ export async function getAllLawyers() {
   return res.json();
 }
 
+/**
+ * Delete all messages in a room (keep the room itself).
+ * DELETE /api/chat/messages/<roomId>/clear/
+ */
+export async function clearMessages(roomId) {
+  const res = await fetch(`${API_BASE}/chat/messages/${roomId}/clear/`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to clear messages");
+  }
+  return res.json();
+}
+
+/**
+ * Permanently delete a chat room and all its messages.
+ * DELETE /api/chat/room/<roomId>/delete/
+ */
+export async function deleteChat(roomId) {
+  const res = await fetch(`${API_BASE}/chat/room/${roomId}/delete/`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to delete chat");
+  }
+  return res.json();
+}
+

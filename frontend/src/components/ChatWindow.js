@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import { Send, Paperclip, MoreVertical } from "lucide-react";
-import { getMessages } from "../services/chatApi";
+import { Send, Paperclip, ChevronLeft, Trash2, MessageSquareX, X } from "lucide-react";
+import { getMessages, clearMessages, deleteChat } from "../services/chatApi";
 import { connectChatSocket } from "../services/chatSocket";
 
 /**
@@ -19,6 +19,9 @@ export default function ChatWindow({ room, participantName, myUserId, partnerUse
   const [inputText, setInputText] = useState("");
   const [wsStatus, setWsStatus] = useState("connecting"); // connecting | open | closed
   const [partnerOnline, setPartnerOnline] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [actionLoading, setActionLoading] = useState(null); // 'clear' | 'delete'
+  const menuRef = useRef(null);
   const socketRef = useRef(null);
   const bottomRef = useRef(null);
   const myId = myUserId != null ? String(myUserId) : null;
@@ -133,6 +136,17 @@ export default function ChatWindow({ room, participantName, myUserId, partnerUse
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handler = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
   // ─── send ────────────────────────────────────────────────────────────────
 
   const handleSend = () => {
@@ -149,6 +163,36 @@ export default function ChatWindow({ room, participantName, myUserId, partnerUse
       handleSend();
     }
   };
+
+  // ─── clear / delete actions ────────────────────────────────────────────────
+
+  const handleClearMessages = useCallback(async () => {
+    if (!window.confirm("Clear all messages in this chat? This cannot be undone.")) return;
+    setMenuOpen(false);
+    setActionLoading("clear");
+    try {
+      await clearMessages(room.id);
+      setMessages([]);
+    } catch (err) {
+      alert(err.message || "Failed to clear messages.");
+    } finally {
+      setActionLoading(null);
+    }
+  }, [room?.id]);
+
+  const handleDeleteChat = useCallback(async () => {
+    if (!window.confirm("Permanently delete this chat and all messages? This cannot be undone.")) return;
+    setMenuOpen(false);
+    setActionLoading("delete");
+    try {
+      await deleteChat(room.id);
+      if (onClose) onClose();
+    } catch (err) {
+      alert(err.message || "Failed to delete chat.");
+    } finally {
+      setActionLoading(null);
+    }
+  }, [room?.id, onClose]);
 
   // ─── format timestamp ─────────────────────────────────────────────────────
 
@@ -200,26 +244,83 @@ export default function ChatWindow({ room, participantName, myUserId, partnerUse
     <div className="flex-1 flex flex-col h-full bg-[#efeae2]">
       {/* ── Header ────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow z-10">
-        <div className="relative flex-shrink-0">
-          <div className="w-10 h-10 rounded-full bg-teal-300 flex items-center justify-center
-                          font-bold text-teal-900 select-none">
-            {participantName ? participantName.charAt(0).toUpperCase() : "?"}
-          </div>
-          {/* Online dot on avatar */}
-          {wsStatus === "open" && (
-            <span
-              className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-[#075e54]
-                          ${partnerOnline ? "bg-green-400" : "bg-gray-400"}`}
-            />
-          )}
-        </div>
+
+        {/* Back button — always on the left */}
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-full hover:bg-white/20 transition flex-shrink-0"
+            aria-label="Back"
+          >
+            <ChevronLeft size={20} />
+          </button>
+        )}
+
+        {/* Name + status */}
         <div className="flex-1 min-w-0">
           <p className="font-semibold truncate text-sm leading-tight">{participantName || "Chat"}</p>
           <p className="leading-tight">{headerStatus}</p>
         </div>
-        <button className="p-1 rounded-full hover:bg-teal-700 transition ml-auto">
-          <MoreVertical size={18} />
-        </button>
+
+        {/* Profile avatar + dropdown — right side */}
+        <div className="relative flex-shrink-0" ref={menuRef}>
+          <button
+            onClick={() => setMenuOpen((o) => !o)}
+            className="w-9 h-9 rounded-full bg-white/20 hover:bg-white/30 transition flex items-center justify-center font-bold text-sm select-none focus:outline-none"
+            aria-label="Chat options"
+            title="Chat options"
+          >
+            {participantName ? participantName.charAt(0).toUpperCase() : "?"}
+            {/* Online dot */}
+            {wsStatus === "open" && (
+              <span
+                className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-indigo-600
+                            ${partnerOnline ? "bg-green-400" : "bg-gray-400"}`}
+              />
+            )}
+          </button>
+
+          {/* Dropdown menu */}
+          {menuOpen && (
+            <div className="absolute right-0 top-11 w-52 bg-white rounded-2xl shadow-xl border border-slate-100 py-1.5 z-50 overflow-hidden">
+              {/* Profile header */}
+              <div className="px-4 py-2.5 border-b border-slate-100">
+                <p className="font-semibold text-sm text-slate-800 truncate">{participantName || "Chat"}</p>
+                <p className={`text-xs mt-0.5 flex items-center gap-1 ${partnerOnline ? "text-emerald-500" : "text-slate-400"}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full inline-block ${partnerOnline ? "bg-emerald-400" : "bg-slate-300"}`} />
+                  {partnerOnline ? "Online" : "Offline"}
+                </p>
+              </div>
+
+              {/* Close menu button inside dropdown */}
+              <button
+                onClick={() => setMenuOpen(false)}
+                className="absolute top-2 right-2 p-1 rounded-full hover:bg-slate-100 text-slate-400 transition"
+              >
+                <X size={13} />
+              </button>
+
+              {/* Actions */}
+              <button
+                onClick={handleClearMessages}
+                disabled={actionLoading === "clear"}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition disabled:opacity-50"
+              >
+                <MessageSquareX size={15} className="text-amber-500 flex-shrink-0" />
+                {actionLoading === "clear" ? "Clearing…" : "Clear messages"}
+              </button>
+
+              <button
+                onClick={handleDeleteChat}
+                disabled={actionLoading === "delete"}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition disabled:opacity-50"
+              >
+                <Trash2 size={15} className="flex-shrink-0" />
+                {actionLoading === "delete" ? "Deleting…" : "Delete chat"}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ── Message list ──────────────────────────────────────────────── */}

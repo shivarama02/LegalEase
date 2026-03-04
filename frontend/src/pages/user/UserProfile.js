@@ -1,315 +1,277 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState, useRef } from 'react';
 import UserSidebar from '../../components/UserSidebar';
-import { apiUrl } from '../../api';
-import { ArrowLeft, User as UserIcon, MapPin, Phone, Mail } from 'lucide-react';
-
-// Lightweight UI primitives (to mirror the referenced UI components)
-function Card({ children, className = '' }) { return <div className={`bg-white border border-gray-200 rounded shadow-sm ${className}`}>{children}</div>; }
-function CardHeader({ children, className = '' }) { return <div className={`px-6 pt-5 pb-3 border-b border-gray-200 ${className}`}>{children}</div>; }
-function CardTitle({ children, className = '' }) { return <h3 className={`text-lg font-semibold ${className}`}>{children}</h3>; }
-function CardContent({ children, className = '' }) { return <div className={`px-6 py-5 ${className}`}>{children}</div>; }
+import { apiUrl, API_BASE } from '../../api';
+import {
+  Camera, User as UserIcon, MapPin, Phone, Mail, Calendar,
+  ShieldCheck, Pencil, X, Save, Loader2,
+} from 'lucide-react';
 
 export default function UserProfile() {
-  const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [client, setClient] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [editData, setEditData] = useState({
-    cname: '',
-    email: '',
-    phone: '',
-    dob: '',
-    address: '',
-    photo_url: '',
-  });
-  const [photoPreview, setPhotoPreview] = useState('');
   const fileInputRef = useRef(null);
+  const [editData, setEditData] = useState({
+    cname: '', email: '', phone: '', dob: '', address: '',
+  });
 
+  const token = sessionStorage.getItem('authToken');
+  const authHeaders = token ? { Authorization: `Token ${token}` } : {};
+
+  /* ─── Load profile ─────────────────────────────────────────────────── */
   useEffect(() => {
-    async function loadMe() {
+    (async () => {
       try {
-        setLoading(true);
-        setError('');
-        const token = sessionStorage.getItem('authToken');
-        const headers = token ? { Authorization: `Token ${token}` } : {};
-        const res = await fetch(apiUrl('/clients/'), { headers });
-        if (!res.ok) {
-          const t = await res.text();
-          throw new Error(t || 'Failed to load user profile');
-        }
+        setLoading(true); setError('');
+        const res = await fetch(apiUrl('/clients/'), { headers: authHeaders });
+        if (!res.ok) throw new Error('Failed to load user profile');
         const data = await res.json();
         const arr = Array.isArray(data) ? data : (data.results || []);
         const me = arr[0] || null;
-        if (!me) {
-          throw new Error('Profile not found for the current user');
-        }
+        if (!me) throw new Error('Profile not found');
         setClient(me);
-        setEditData({
-          cname: me.cname || me.username || '',
-          email: me.email || '',
-          phone: me.phone || '',
-          dob: me.dob || '',
-          address: me.address || '',
-        });
-      } catch (e) {
-        setError(e.message || 'Failed to load user profile');
-      } finally {
-        setLoading(false);
-      }
-    }
-    loadMe();
+        populateEdit(me);
+      } catch (e) { setError(e.message || 'Failed to load profile'); }
+      finally { setLoading(false); }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const fullName = client?.cname || client?.username || 'User';
-  const email = client?.email || '';
-  const phone = client?.phone || '';
-  const dob = client?.dob || '';
-  const address = client?.address || '';
-  const photoUrl = (isEditing ? (photoPreview || editData.photo_url) : (client?.photo_url || '')) || '';
+  function populateEdit(d) {
+    setEditData({
+      cname: d.cname || '', email: d.email || '', phone: d.phone || '',
+      dob: d.dob || '', address: d.address || '',
+    });
+  }
 
+  /* ─── Save profile ─────────────────────────────────────────────────── */
   async function saveChanges() {
     if (!client?.id) return;
+    setSaving(true); setError(''); setSuccess('');
     try {
-      setLoading(true);
-      setError('');
-      const token = sessionStorage.getItem('authToken');
-      const headers = {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Token ${token}` } : {}),
-      };
+      const headers = { 'Content-Type': 'application/json', ...authHeaders };
       const payload = {
-        cname: editData.cname,
-        email: editData.email,
-        phone: editData.phone,
-        dob: editData.dob || null,
-        address: editData.address,
+        cname: editData.cname, email: editData.email, phone: editData.phone,
+        dob: editData.dob || null, address: editData.address,
       };
-      const res = await fetch(apiUrl(`/clients/${client.id}/`), {
-        method: 'PATCH',
-        headers,
-        body: JSON.stringify(payload),
-      });
+      const res = await fetch(apiUrl(`/clients/${client.id}/`), { method: 'PATCH', headers, body: JSON.stringify(payload) });
       const updated = await res.json();
-      if (!res.ok) {
-        throw new Error(updated?.detail || 'Failed to update profile');
-      }
+      if (!res.ok) throw new Error(updated?.detail || 'Failed to update profile');
       setClient(updated);
       setIsEditing(false);
-      setPhotoPreview('');
-    } catch (e) {
-      setError(e.message || 'Update failed');
-    } finally {
-      setLoading(false);
-    }
+      setSuccess('Profile updated successfully!');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (e) { setError(e.message || 'Update failed'); }
+    finally { setSaving(false); }
   }
 
-  function onPickPhoto() {
-    fileInputRef.current?.click();
-  }
-
-  function onFileChange(e) {
+  /* ─── Upload photo ─────────────────────────────────────────────────── */
+  async function handlePhotoUpload(e) {
     const file = e.target.files?.[0];
-    if (!file) return;
-    // Preview locally (not persisted). Saving requires a public URL (photo_url).
-    const url = URL.createObjectURL(file);
-    setPhotoPreview(url);
+    if (!file || !client?.id) return;
+    setUploading(true); setError('');
+    try {
+      const formData = new FormData();
+      formData.append('photo', file);
+      const res = await fetch(`${API_BASE}/clients/${client.id}/upload-photo/`, {
+        method: 'POST', headers: authHeaders, body: formData,
+      });
+      const updated = await res.json();
+      if (!res.ok) throw new Error(updated?.error || 'Upload failed');
+      setClient(updated);
+      setSuccess('Photo updated!');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) { setError(err.message || 'Photo upload failed'); }
+    finally { setUploading(false); if (fileInputRef.current) fileInputRef.current.value = ''; }
   }
 
+  /* ─── Derived data ─────────────────────────────────────────────────── */
+  const fullName = client?.cname || client?.username || 'User';
+  const photoSrc = client?.photo_full_url || '';
+
+  /* ─── Field helper ─────────────────────────────────────────────────── */
+  const Field = ({ label, field, type = 'text', ...rest }) => (
+    <div className="flex-1">
+      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">{label}</label>
+      {!isEditing ? (
+        <p className="text-sm font-medium text-slate-800">{client?.[field] || '—'}</p>
+      ) : (
+        <input
+          type={type}
+          className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 transition"
+          value={editData[field]}
+          onChange={e => setEditData(d => ({ ...d, [field]: e.target.value }))}
+          {...rest}
+        />
+      )}
+    </div>
+  );
+
+  /* ─── Render ───────────────────────────────────────────────────────── */
   return (
-    <div className="min-h-screen flex bg-gradient-subtle">
+    <div className="min-h-screen flex bg-slate-50">
       <UserSidebar />
-      <div className="flex-1 p-6 ">
-        <div className="max-w-5xl mx-auto space-y-6">
-          {/* Header */}
-          <div className="flex items-center justify-end mb-8">
-            
-            <div className="flex items-center space-x-2">
-              {loading && <span className="text-sm text-gray-500">Loading…</span>}
-              {!loading && client && !isEditing && (
-                <button
-                  type="button"
-                  onClick={() => setIsEditing(true)}
-                  className="inline-flex items-center px-4 py-2 rounded bg-gradient-to-r from-indigo-600 to-indigo-500 text-white text-sm font-medium shadow"
-                >
-                  Edit Profile
-                </button>
-              )}
-              {isEditing && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => { setIsEditing(false); setPhotoPreview(''); setEditData({
-                      cname: client?.cname || client?.username || '',
-                      email: client?.email || '',
-                      phone: client?.phone || '',
-                      dob: client?.dob || '',
-                      address: client?.address || '',
-                    }); }}
-                    className="px-4 py-2 border rounded text-sm bg-white hover:bg-gray-50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={saveChanges}
-                    className="inline-flex items-center px-4 py-2 rounded bg-gradient-to-r from-indigo-600 to-indigo-500 text-white text-sm font-medium shadow"
-                  >
-                    Save Changes
-                  </button>
-                </>
-              )}
+      <div className="flex-1 overflow-y-auto p-4 md:p-8">
+        <div className="max-w-4xl mx-auto">
+
+          {/* Toast Messages */}
+          {success && (
+            <div className="mb-4 flex items-center gap-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl px-4 py-3 text-sm font-medium animate-fade-in">
+              <ShieldCheck size={16} /> {success}
             </div>
-          </div>
+          )}
+          {error && (
+            <div className="mb-4 bg-red-50 text-red-600 border border-red-200 rounded-xl px-4 py-3 text-sm font-medium">{error}</div>
+          )}
 
-          {error && <div className="mb-4 text-sm text-red-600">{error}</div>}
+          {loading && (
+            <div className="flex items-center justify-center py-20 gap-2 text-slate-400">
+              <Loader2 size={20} className="animate-spin" /> Loading…
+            </div>
+          )}
 
-          {/* Single Profile Card (Personal Info only) */}
-          <Card className="shadow-custom-lg">
-            {/* Profile Picture Section */}
-            <div className="text-center pt-8 pb-6 bg-gradient-primary">
-              <div className="relative inline-block">
-                <div className="w-32 h-32 bg-white/20 rounded-full flex items-center justify-center border-4 border-white/30 overflow-hidden">
-                  {photoUrl ? (
-                    <img src={photoUrl} alt={fullName} className="h-full w-full object-cover" />
+          {client && (
+            <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+
+              {/* ── Cover + Avatar ────────────────────────────────────── */}
+              <div className="relative h-44 md:h-52 bg-gradient-to-br from-indigo-600 via-violet-600 to-purple-600">
+                <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'20\' height=\'20\' viewBox=\'0 0 20 20\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'%23fff\' fill-opacity=\'1\'%3E%3Ccircle cx=\'1\' cy=\'1\' r=\'1\'/%3E%3C/g%3E%3C/svg%3E")', backgroundSize: '20px 20px' }} />
+
+                {/* Edit / Save buttons */}
+                <div className="absolute top-4 right-4 flex gap-2 z-10">
+                  {!isEditing ? (
+                    <button onClick={() => setIsEditing(true)}
+                      className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white text-xs font-semibold px-4 py-2 rounded-xl transition">
+                      <Pencil size={13} /> Edit Profile
+                    </button>
                   ) : (
-                    <UserIcon className="h-16 w-16 text-white" />
+                    <>
+                      <button onClick={() => { setIsEditing(false); populateEdit(client); }}
+                        className="flex items-center gap-1 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white text-xs font-semibold px-3 py-2 rounded-xl transition">
+                        <X size={13} /> Cancel
+                      </button>
+                      <button onClick={saveChanges} disabled={saving}
+                        className="flex items-center gap-1 bg-white hover:bg-slate-50 text-indigo-700 text-xs font-semibold px-4 py-2 rounded-xl transition shadow-sm disabled:opacity-60">
+                        {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
+                        {saving ? 'Saving…' : 'Save'}
+                      </button>
+                    </>
                   )}
                 </div>
-                {isEditing && (
-                  <button
-                    type="button"
-                    onClick={onPickPhoto}
-                    className="absolute bottom-2 right-2 rounded-full bg-white/20 hover:bg-white/30 w-10 h-10 p-0 flex items-center justify-center"
-                    title="Upload photo (preview only)"
-                  >
-                    {/* Camera icon */}
-                    <svg className="h-4 w-4 text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 7h4l2-3h6l2 3h4v12H3z" />
-                      <circle cx="12" cy="13" r="4" />
-                    </svg>
-                  </button>
-                )}
-                <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={onFileChange} />
-              </div>
-              <h1 className="text-3xl font-bold text-white mt-4">{fullName}</h1>
-              {/* Occupation omitted since we're focusing on personal information */}
-              
-            </div>
 
-            <CardContent className="p-8">
-              {/* Quick Info */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 pb-6 border-b">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                    <Mail className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Email</p>
-                    <p className="text-sm font-medium break-all">{email || '—'}</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                    <Phone className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Phone</p>
-                    <p className="text-sm font-medium">{phone || '—'}</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                    <MapPin className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Location</p>
-                    <p className="text-sm font-medium truncate max-w-[220px]" title={address}>{address || '—'}</p>
+                {/* Avatar */}
+                <div className="absolute -bottom-16 left-1/2 -translate-x-1/2 md:left-10 md:translate-x-0">
+                  <div className="relative group">
+                    <div className="w-32 h-32 rounded-3xl border-4 border-white bg-white shadow-xl overflow-hidden flex items-center justify-center">
+                      {photoSrc ? (
+                        <img src={photoSrc} alt={fullName} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center">
+                          <UserIcon className="w-14 h-14 text-indigo-300" />
+                        </div>
+                      )}
+                    </div>
+                    <button onClick={() => fileInputRef.current?.click()} disabled={uploading}
+                      className="absolute inset-0 rounded-3xl bg-black/0 group-hover:bg-black/40 flex items-center justify-center transition-all cursor-pointer">
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center text-white">
+                        {uploading ? <Loader2 size={22} className="animate-spin" /> : <Camera size={22} />}
+                        <span className="text-[10px] font-semibold mt-1">{uploading ? 'Uploading…' : 'Change Photo'}</span>
+                      </div>
+                    </button>
+                    <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
                   </div>
                 </div>
               </div>
 
-              {/* Personal Information (read-only) */}
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-semibold mb-4">Basic Information</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block mb-1 text-sm font-medium">Full Name</label>
-                      {!isEditing ? (
-                        <p className="text-sm font-medium">{fullName}</p>
-                      ) : (
-                        <input
-                          className="w-full border rounded px-3 py-2 text-sm"
-                          value={editData.cname}
-                          onChange={e=>setEditData(d=>({...d,cname:e.target.value}))}
-                        />
-                      )}
+              {/* ── Body ──────────────────────────────────────────────── */}
+              <div className="pt-20 md:pt-6 md:pl-48 px-6 md:px-8 pb-8">
+
+                {/* Name row */}
+                <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-2 mb-6">
+                  <div>
+                    <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900">{fullName}</h1>
+                    <p className="text-sm text-slate-500 mt-0.5">@{client.username}</p>
+                  </div>
+                  <div className="flex items-center gap-4 flex-wrap text-sm text-slate-600">
+                    {client.email && (
+                      <div className="flex items-center gap-1">
+                        <Mail size={13} className="text-slate-400" /> {client.email}
+                      </div>
+                    )}
+                    {client.phone && (
+                      <>
+                        <span className="hidden sm:block w-px h-5 bg-slate-200" />
+                        <div className="flex items-center gap-1">
+                          <Phone size={13} className="text-slate-400" /> {client.phone}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                <hr className="border-slate-100 mb-6" />
+
+                {/* ── Personal Info ───────────────────────────────────── */}
+                <div className="mb-6">
+                  <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4">Personal Information</h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
+                    <div className="flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <UserIcon size={15} className="text-indigo-500" />
+                      </div>
+                      <Field label="Full Name" field="cname" />
                     </div>
-                    <div>
-                      <label className="block mb-1 text-sm font-medium">Email Address</label>
-                      {!isEditing ? (
-                        <p className="text-sm font-medium break-all">{email || '—'}</p>
-                      ) : (
-                        <input
-                          type="email"
-                          className="w-full border rounded px-3 py-2 text-sm"
-                          value={editData.email}
-                          onChange={e=>setEditData(d=>({...d,email:e.target.value}))}
-                        />
-                      )}
+                    <div className="flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <Mail size={15} className="text-indigo-500" />
+                      </div>
+                      <Field label="Email" field="email" type="email" />
                     </div>
-                    <div>
-                      <label className="block mb-1 text-sm font-medium">Phone Number</label>
-                      {!isEditing ? (
-                        <p className="text-sm font-medium">{phone || '—'}</p>
-                      ) : (
-                        <input
-                          className="w-full border rounded px-3 py-2 text-sm"
-                          value={editData.phone}
-                          onChange={e=>setEditData(d=>({...d,phone:e.target.value}))}
-                        />
-                      )}
+                    <div className="flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <Phone size={15} className="text-indigo-500" />
+                      </div>
+                      <Field label="Phone" field="phone" />
                     </div>
-                    <div>
-                      <label className="block mb-1 text-sm font-medium">Date of Birth</label>
-                      {!isEditing ? (
-                        <p className="text-sm font-medium">{dob || '—'}</p>
-                      ) : (
-                        <input
-                          type="date"
-                          className="w-full border rounded px-3 py-2 text-sm"
-                          value={editData.dob || ''}
-                          onChange={e=>setEditData(d=>({...d,dob:e.target.value}))}
-                        />
-                      )}
+                    <div className="flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <Calendar size={15} className="text-indigo-500" />
+                      </div>
+                      <Field label="Date of Birth" field="dob" type="date" />
                     </div>
                   </div>
                 </div>
 
+                <hr className="border-slate-100 mb-6" />
+
+                {/* ── Address ─────────────────────────────────────────── */}
                 <div>
-                  <h3 className="text-lg font-semibold mb-4">Address Information</h3>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block mb-1 text-sm font-medium">Address</label>
+                  <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4">Address</h2>
+                  <div className="flex items-start gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-violet-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <MapPin size={15} className="text-violet-500" />
+                    </div>
+                    <div className="flex-1">
+                      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Address</label>
                       {!isEditing ? (
-                        <p className="text-sm font-medium whitespace-pre-line">{address || '—'}</p>
+                        <p className="text-sm font-medium text-slate-800 whitespace-pre-line">{client?.address || '—'}</p>
                       ) : (
-                        <textarea
-                          rows={3}
-                          className="w-full border rounded px-3 py-2 text-sm"
+                        <textarea rows={3}
+                          className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 transition resize-none"
                           value={editData.address}
-                          onChange={e=>setEditData(d=>({...d,address:e.target.value}))}
+                          onChange={e => setEditData(d => ({ ...d, address: e.target.value }))}
                         />
                       )}
                     </div>
-                    {/* City/State/PIN omitted due to unavailable fields in current profile */}
                   </div>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          )}
         </div>
       </div>
     </div>

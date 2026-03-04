@@ -180,7 +180,9 @@ export default function LawyerChat() {
       <LawyerSidebar />
 
       {/* ── Conversation Sidebar ────────────────────────────────────────── */}
-      <div className="w-[320px] flex-shrink-0 flex flex-col bg-white shadow-md z-10">
+      <div className={`${
+        selectedRoom ? "hidden md:flex" : "flex"
+      } w-full md:w-[320px] flex-shrink-0 flex-col bg-white shadow-md z-10`}>
 
         {/* Header */}
         <div className="px-5 pt-5 pb-4 bg-gradient-to-br from-indigo-600 to-violet-600 text-white">
@@ -293,6 +295,7 @@ export default function LawyerChat() {
       </div>
 
       {/* ── Right Panel ─────────────────────────────────────────────────── */}
+      <div className={`${selectedRoom ? "flex" : "hidden md:flex"} flex-1 flex-col`}>
       {selectedRoom && selectedRoom.status === "active" ? (
         <ChatWindow
           room={selectedRoom}
@@ -303,7 +306,15 @@ export default function LawyerChat() {
         />
       ) : selectedRoom && selectedRoom.status === "pending" ? (
         /* Accept card */
-        <div className="flex-1 flex items-center justify-center bg-slate-50 px-8">
+        <div className="flex-1 flex flex-col items-center justify-center bg-slate-50 px-8">
+          {/* Mobile back button */}
+          <button
+            onClick={() => setSelectedRoom(null)}
+            className="md:hidden self-start mb-4 flex items-center gap-1.5 text-sm text-slate-500 hover:text-indigo-600 transition"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
+            Back
+          </button>
           <div className="bg-white rounded-3xl shadow-xl border border-slate-100 p-10 max-w-md w-full text-center">
             <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center font-bold text-indigo-600 text-3xl mx-auto mb-5 select-none">
               {(selectedRoom.client_name || selectedRoom.client_email || "C").charAt(0).toUpperCase()}
@@ -350,6 +361,8 @@ export default function LawyerChat() {
               : "Select a chat from the sidebar to start"}
           </p>
         </div>
-      )}    </div>
+      )}
+      </div>
+    </div>
   );
 }
