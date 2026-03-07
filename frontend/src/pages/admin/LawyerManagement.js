@@ -1,191 +1,167 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect, useState, useCallback } from 'react';
 import AdminSidebar from '../../components/AdminSidebar';
+import { apiUrl } from '../../api';
+import {
+  UserCog, Search, Trash2, Loader2, Mail, Phone, MapPin, Briefcase, Star,
+  ShieldCheck, ShieldOff, X, CheckCircle2, Scale,
+} from 'lucide-react';
 
 export default function LawyerManagement() {
-	return (
-		<div className="min-h-screen bg-background flex">
-			{/* Admin sidebar on the left */}
-			<AdminSidebar />
-			<div className="flex-1">
-				{/* Header */}
-				<header className="border-b bg-white">
-					<div className="container mx-auto px-4 py-4">
-						<div className="flex items-center gap-4">
-							<Link to="/admin-dashboard">
-								<button className="p-2 rounded-full hover:bg-gray-100" aria-label="Back">
-									{/* Arrow Left */}
-									<svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-										<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
-									</svg>
-								</button>
-							</Link>
-							<div>
-								<h1 className="text-2xl font-bold">Lawyer Management</h1>
-								<p className="text-sm text-gray-500">Manage lawyer profiles and permissions</p>
-							</div>
-						</div>
-					</div>
-				</header>
+  const token = sessionStorage.getItem('authToken');
+  const headers = token ? { Authorization: `Token ${token}` } : {};
 
-				{/* Main Content */}
-				<main className="container mx-auto px-4 py-8">
-					{/* Search + Add Button */}
-					<div className="flex flex-col md:flex-row gap-4 mb-6">
-						<div className="flex-1 relative">
-							{/* Search icon */}
-							<svg xmlns="http://www.w3.org/2000/svg" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-								<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-4.35-4.35M10 18a8 8 0 100-16 8 8 0 000 16z" />
-							</svg>
-							<input
-								type="text"
-								placeholder="Search lawyers..."
-								className="w-full pl-10 border border-gray-300 rounded-md py-2 focus:outline-none focus:ring focus:ring-indigo-200"
-							/>
-						</div>
-						<button className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
-							{/* Plus icon */}
-							<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-								<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-							</svg>
-							Add Lawyer
-						</button>
-					</div>
+  const [lawyers, setLawyers] = useState([]);
+  const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [toast, setToast] = useState('');
 
-					{/* Lawyer Cards */}
-					<div className="grid gap-4">
-						{/* Lawyer 1 */}
-						<div className="border rounded-lg shadow-sm bg-white">
-							<div className="p-4 border-b">
-								<div className="flex items-start justify-between">
-									<div className="flex-1">
-										<div className="flex items-center gap-3">
-											<h2 className="font-semibold">Adv. Rajesh Kumar</h2>
-											<span className="px-2 py-0.5 text-xs bg-indigo-100 text-indigo-700 rounded">active</span>
-										</div>
-										<p className="text-sm text-gray-500 mt-2">Criminal Law • Delhi • 15 years experience</p>
-									</div>
-									<div className="flex gap-2">
-										<button className="p-2 rounded-md bg-red-100 text-red-600 hover:bg-red-200" aria-label="Deactivate">
-											{/* x-circle */}
-											<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-												<circle cx="12" cy="12" r="9" strokeWidth="2" />
-												<path d="M15 9l-6 6m0-6l6 6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-											</svg>
-										</button>
-										<button className="p-2 rounded-md border hover:bg-gray-100" aria-label="Edit">
-											{/* edit (simple pen) */}
-											<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-												<path d="M12 20h9" strokeWidth="2" strokeLinecap="round" />
-												<path d="M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4 12.5-12.5z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-											</svg>
-										</button>
-										<button className="p-2 rounded-md bg-red-600 text-white hover:bg-red-700" aria-label="Delete">
-											{/* trash-2 */}
-											<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-												<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4H9v3H4" />
-											</svg>
-										</button>
-									</div>
-								</div>
-							</div>
-							<div className="p-4">
-								<div className="flex gap-6 text-sm">
-									<div>
-										<span className="text-gray-500">Total Cases:</span>
-										<span className="ml-2 font-medium">234</span>
-									</div>
-								</div>
-							</div>
-						</div>
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const url = search ? apiUrl(`/lawyers/?search=${encodeURIComponent(search)}`) : apiUrl('/lawyers/');
+      const res = await fetch(url, { headers });
+      if (res.ok) {
+        const data = await res.json();
+        setLawyers(Array.isArray(data) ? data : data.results || []);
+      }
+    } catch { }
+    finally { setLoading(false); }
+  }, [search]); // eslint-disable-line react-hooks/exhaustive-deps
 
-						{/* Lawyer 2 */}
-						<div className="border rounded-lg shadow-sm bg-white">
-							<div className="p-4 border-b">
-								<div className="flex items-start justify-between">
-									<div className="flex-1">
-										<div className="flex items-center gap-3">
-											<h2 className="font-semibold">Adv. Priya Sharma</h2>
-											<span className="px-2 py-0.5 text-xs bg-indigo-100 text-indigo-700 rounded">active</span>
-										</div>
-										<p className="text-sm text-gray-500 mt-2">Family Law • Mumbai • 10 years experience</p>
-									</div>
-									<div className="flex gap-2">
-										<button className="p-2 rounded-md bg-red-100 text-red-600 hover:bg-red-200" aria-label="Deactivate">
-											<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-												<circle cx="12" cy="12" r="9" strokeWidth="2" />
-												<path d="M15 9l-6 6m0-6l6 6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-											</svg>
-										</button>
-										<button className="p-2 rounded-md border hover:bg-gray-100" aria-label="Edit">
-											<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-												<path d="M12 20h9" strokeWidth="2" strokeLinecap="round" />
-												<path d="M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4 12.5-12.5z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-											</svg>
-										</button>
-										<button className="p-2 rounded-md bg-red-600 text-white hover:bg-red-700" aria-label="Delete">
-											<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-												<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4H9v3H4" />
-											</svg>
-										</button>
-									</div>
-								</div>
-							</div>
-							<div className="p-4">
-								<div className="flex gap-6 text-sm">
-									<div>
-										<span className="text-gray-500">Total Cases:</span>
-										<span className="ml-2 font-medium">189</span>
-									</div>
-								</div>
-							</div>
-						</div>
+  useEffect(() => { const t = setTimeout(load, 300); return () => clearTimeout(t); }, [load]);
 
-						{/* Lawyer 3 */}
-						<div className="border rounded-lg shadow-sm bg-white">
-							<div className="p-4 border-b">
-								<div className="flex items-start justify-between">
-									<div className="flex-1">
-										<div className="flex items-center gap-3">
-											<h2 className="font-semibold">Adv. Amit Patel</h2>
-											<span className="px-2 py-0.5 text-xs bg-gray-200 text-gray-700 rounded">inactive</span>
-										</div>
-										<p className="text-sm text-gray-500 mt-2">Corporate Law • Bangalore • 8 years experience</p>
-									</div>
-									<div className="flex gap-2">
-										<button className="p-2 rounded-md bg-green-100 text-green-600 hover:bg-green-200" aria-label="Activate">
-											{/* check-circle */}
-											<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-												<circle cx="12" cy="12" r="9" strokeWidth="2" />
-												<path d="M9 12l2 2 4-4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-											</svg>
-										</button>
-										<button className="p-2 rounded-md border hover:bg-gray-100" aria-label="Edit">
-											<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-												<path d="M12 20h9" strokeWidth="2" strokeLinecap="round" />
-												<path d="M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4 12.5-12.5z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-											</svg>
-										</button>
-										<button className="p-2 rounded-md bg-red-600 text-white hover:bg-red-700" aria-label="Delete">
-											<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-												<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4H9v3H4" />
-											</svg>
-										</button>
-									</div>
-								</div>
-							</div>
-							<div className="p-4">
-								<div className="flex gap-6 text-sm">
-									<div>
-										<span className="text-gray-500">Total Cases:</span>
-										<span className="ml-2 font-medium">156</span>
-									</div>
-								</div>
-							</div>
-						</div>
-					</div>
-				</main>
-			</div>
-		</div>
-	);
+  async function toggleVerify(lawyer) {
+    try {
+      const res = await fetch(apiUrl(`/lawyers/${lawyer.id}/`), {
+        method: 'PATCH',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_verified: !lawyer.is_verified }),
+      });
+      if (res.ok) {
+        setLawyers(prev => prev.map(l => l.id === lawyer.id ? { ...l, is_verified: !l.is_verified } : l));
+        setToast(lawyer.is_verified ? 'Lawyer unverified' : 'Lawyer verified');
+        setTimeout(() => setToast(''), 3000);
+      }
+    } catch { }
+  }
+
+  async function handleDelete(id) {
+    if (!window.confirm('Delete this lawyer permanently?')) return;
+    try {
+      const res = await fetch(apiUrl(`/lawyers/${id}/`), { method: 'DELETE', headers });
+      if (res.ok || res.status === 204) {
+        setLawyers(prev => prev.filter(l => l.id !== id));
+        setToast('Lawyer deleted'); setTimeout(() => setToast(''), 3000);
+      }
+    } catch { }
+  }
+
+  return (
+    <div className="min-h-screen flex bg-slate-50">
+      <AdminSidebar />
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-6xl mx-auto px-4 md:px-8 py-8">
+
+          {/* Header */}
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+                <UserCog size={20} className="text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-slate-900">Lawyer Management</h1>
+                <p className="text-sm text-slate-500">Manage lawyer profiles & verification</p>
+              </div>
+            </div>
+            <span className="text-sm font-semibold text-slate-400">{lawyers.length} lawyers</span>
+          </div>
+
+          {/* Toast */}
+          {toast && (
+            <div className="mb-4 flex items-center gap-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl px-4 py-3 text-sm font-medium">
+              <CheckCircle2 size={16} /> {toast}
+            </div>
+          )}
+
+          {/* Search */}
+          <div className="relative mb-6">
+            <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input type="text" value={search} onChange={e => setSearch(e.target.value)}
+              placeholder="Search by name, specialization, location…"
+              className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-400 shadow-sm" />
+            {search && (
+              <button onClick={() => setSearch('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                <X size={14} />
+              </button>
+            )}
+          </div>
+
+          {loading ? (
+            <div className="flex items-center justify-center py-20 gap-2 text-slate-400">
+              <Loader2 size={20} className="animate-spin" /> Loading lawyers…
+            </div>
+          ) : lawyers.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm py-16 text-center">
+              <Scale size={36} className="mx-auto mb-3 text-slate-300" />
+              <h3 className="text-lg font-bold text-slate-700">No Lawyers Found</h3>
+              <p className="text-sm text-slate-400 mt-1">{search ? 'Try a different search term' : 'No registered lawyers yet'}</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {lawyers.map(l => (
+                <div key={l.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition overflow-hidden">
+                  <div className="p-5 flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-100 to-purple-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                        {l.photo_full_url ? (
+                          <img src={l.photo_full_url} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-lg font-bold text-violet-600">{(l.lname || l.full_name || 'L')[0].toUpperCase()}</span>
+                        )}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-sm font-bold text-slate-800">{l.full_name || l.lname}</h3>
+                          {l.is_verified ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 text-[10px] font-semibold uppercase tracking-wider">
+                              <ShieldCheck size={10} /> Verified
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 text-[10px] font-semibold uppercase tracking-wider">
+                              <ShieldOff size={10} /> Unverified
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-400 mt-0.5">@{l.username}</p>
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-slate-500">
+                          {l.specialization && <span className="flex items-center gap-1"><Briefcase size={11} /> {l.specialization}</span>}
+                          {l.location && <span className="flex items-center gap-1"><MapPin size={11} /> {l.location}</span>}
+                          {l.experience_years && <span className="flex items-center gap-1"><Briefcase size={11} /> {l.experience_years} yrs exp</span>}
+                          <span className="flex items-center gap-1"><Mail size={11} /> {l.email}</span>
+                          {l.phone && <span className="flex items-center gap-1"><Phone size={11} /> {l.phone}</span>}
+                          <span className="flex items-center gap-1 text-amber-500"><Star size={11} fill="currentColor" /> {l.rating ?? '–'} ({l.reviews_count ?? 0})</span>
+                          {l.charge && <span className="font-semibold text-slate-700">₹{l.charge}</span>}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <button onClick={() => toggleVerify(l)}
+                        className={`p-2 rounded-lg transition ${l.is_verified ? 'text-amber-500 hover:bg-amber-50' : 'text-emerald-500 hover:bg-emerald-50'}`}
+                        title={l.is_verified ? 'Unverify' : 'Verify'}>
+                        {l.is_verified ? <ShieldOff size={16} /> : <ShieldCheck size={16} />}
+                      </button>
+                      <button onClick={() => handleDelete(l.id)}
+                        className="p-2 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-500 transition" title="Delete lawyer">
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }

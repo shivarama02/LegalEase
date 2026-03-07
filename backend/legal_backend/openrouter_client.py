@@ -96,7 +96,7 @@ def get_gemini_response(user_query: str) -> str:
             "content": query
         }
     ],
-    "max_tokens": 700,
+    "max_tokens": 1000,
     "temperature": 0.3
 }
 

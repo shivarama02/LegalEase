@@ -14,7 +14,7 @@ export default function ComplaintPreview() {
   const [loading, setLoading] = useState((!!draftId || !!complaintId) && !location.state?.complaint);
   const [saving, setSaving] = useState(false);
   const currentDate = useMemo(() => new Date().toLocaleDateString(), []);
-  const existingId = complaintId || data?.id || null;
+  const [existingId, setExistingId] = useState(complaintId || location.state?.complaint?.id || null);
 
   useEffect(() => {
     const token = sessionStorage.getItem('authToken');
@@ -117,6 +117,7 @@ export default function ComplaintPreview() {
       }
       const saved = await res.json();
       setData(saved);
+      setExistingId(saved.id);
       alert(`Complaint ${existingId ? 'updated' : 'saved'} (ID: ${saved.id}).`);
       navigate('/user/complaints/history');
     } catch (e) { console.error(e); alert('Save failed: ' + e.message); }

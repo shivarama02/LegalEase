@@ -1,150 +1,170 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect, useState, useCallback } from 'react';
 import AdminSidebar from '../../components/AdminSidebar';
+import { apiUrl } from '../../api';
+import {
+  MessageSquare, Search, Trash2, Loader2, Star, X, CheckCircle2, Filter, User,
+} from 'lucide-react';
+
+const TYPES = ['all', 'platform', 'lawyer'];
 
 export default function FeedbackManagement() {
-	const Star = ({ filled = false }) => (
-		<svg
-			xmlns="http://www.w3.org/2000/svg"
-			viewBox="0 0 24 24"
-			className={filled ? 'lucide lucide-star w-4 h-4 text-yellow-400 fill-yellow-400' : 'lucide lucide-star w-4 h-4 text-gray-400'}
-			fill={filled ? 'currentColor' : 'none'}
-			stroke="currentColor"
-			strokeWidth="1.5"
-		>
-			<path d="M12 17.27l-5.18 3.11 1.4-5.98L3 9.63l6.09-.52L12 3.5l2.91 5.61 6.09.52-5.22 4.77 1.4 5.98L12 17.27z"/>
-		</svg>
-	);
+  const token = sessionStorage.getItem('authToken');
+  const headers = token ? { Authorization: `Token ${token}` } : {};
 
-	return (
-		<div className="min-h-screen bg-gray-50 flex">
-			{/* Admin sidebar on the left */}
-			<AdminSidebar />
-			<div className="flex-1">
-				{/* Header */}
-				<header className="border-b bg-white">
-					<div className="container mx-auto px-4 py-4">
-						<div className="flex items-center gap-4">
-							<Link to="/admin-dashboard" className="p-2 rounded hover:bg-gray-100" aria-label="Back">
-								{/* Arrow Left */}
-								<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
-								</svg>
-							</Link>
-							<div>
-								<h1 className="text-2xl font-bold text-gray-900">Feedback Management</h1>
-								<p className="text-sm text-gray-500">View and analyze user feedback</p>
-							</div>
-						</div>
-					</div>
-				</header>
+  const [feedbacks, setFeedbacks] = useState([]);
+  const [search, setSearch] = useState('');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [loading, setLoading] = useState(true);
+  const [toast, setToast] = useState('');
 
-				{/* Main */}
-				<main className="container mx-auto px-4 py-8">
-					{/* Search */}
-					<div className="flex flex-col md:flex-row gap-4 mb-6">
-						<div className="flex-1 relative">
-							{/* Search icon */}
-							<svg
-								xmlns="http://www.w3.org/2000/svg"
-								className="lucide lucide-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4"
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-							>
-								<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-4.35-4.35M10 18a8 8 0 100-16 8 8 0 000 16z" />
-							</svg>
-							<input
-								type="text"
-								placeholder="Search feedback..."
-								className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none"
-							/>
-						</div>
-					</div>
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(apiUrl('/feedbacks/'), { headers });
+      if (res.ok) {
+        const data = await res.json();
+        setFeedbacks(Array.isArray(data) ? data : data.results || []);
+      }
+    } catch { }
+    finally { setLoading(false); }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-					{/* Feedback Cards */}
-					<div className="grid gap-4">
-						{/* Feedback 1 */}
-						<div className="border rounded-lg shadow-sm bg-white">
-							<div className="p-4 border-b flex items-start justify-between">
-								<div className="flex-1">
-									<div className="flex items-center gap-3">
-										<h2 className="text-lg font-semibold">John Doe</h2>
-										<span className="px-2 py-1 text-xs font-medium rounded bg-gray-900 text-white">platform</span>
-										<div className="flex items-center gap-1">
-											<Star filled />
-											<Star filled />
-											<Star filled />
-											<Star filled />
-											<Star filled />
-										</div>
-									</div>
-									<p className="mt-2 text-sm text-gray-500">2024-12-10</p>
-								</div>
-								<button className="p-2 rounded bg-red-600 text-white hover:bg-red-700" aria-label="Delete">
-									{/* trash-2 */}
-									<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-										<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4H9v3H4" />
-									</svg>
-								</button>
-							</div>
-							<div className="p-4 text-sm text-gray-600">Excellent platform, very helpful!</div>
-						</div>
+  useEffect(() => { load(); }, [load]);
 
-						{/* Feedback 2 */}
-						<div className="border rounded-lg shadow-sm bg-white">
-							<div className="p-4 border-b flex items-start justify-between">
-								<div className="flex-1">
-									<div className="flex items-center gap-3">
-										<h2 className="text-lg font-semibold">Jane Smith</h2>
-										<span className="px-2 py-1 text-xs font-medium rounded bg-gray-200 text-gray-800">lawyer</span>
-										<div className="flex items-center gap-1">
-											<Star filled />
-											<Star filled />
-											<Star filled />
-											<Star filled />
-											<Star filled={false} />
-										</div>
-									</div>
-									<p className="mt-2 text-sm text-gray-500">For Adv. Kumar • 2024-12-09</p>
-								</div>
-								<button className="p-2 rounded bg-red-600 text-white hover:bg-red-700" aria-label="Delete">
-									<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-										<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4H9v3H4" />
-									</svg>
-								</button>
-							</div>
-							<div className="p-4 text-sm text-gray-600">Professional service</div>
-						</div>
+  async function handleDelete(id) {
+    if (!window.confirm('Delete this feedback permanently?')) return;
+    try {
+      const res = await fetch(apiUrl(`/feedbacks/${id}/`), { method: 'DELETE', headers });
+      if (res.ok || res.status === 204) {
+        setFeedbacks(prev => prev.filter(f => f.id !== id));
+        setToast('Feedback deleted'); setTimeout(() => setToast(''), 3000);
+      }
+    } catch { }
+  }
 
-						{/* Feedback 3 */}
-						<div className="border rounded-lg shadow-sm bg-white">
-							<div className="p-4 border-b flex items-start justify-between">
-								<div className="flex-1">
-									<div className="flex items-center gap-3">
-										<h2 className="text-lg font-semibold">Bob Johnson</h2>
-										<span className="px-2 py-1 text-xs font-medium rounded bg-gray-900 text-white">platform</span>
-										<div className="flex items-center gap-1">
-											<Star filled />
-											<Star filled />
-											<Star filled />
-											<Star filled={false} />
-											<Star filled={false} />
-										</div>
-									</div>
-									<p className="mt-2 text-sm text-gray-500">2024-12-08</p>
-								</div>
-								<button className="p-2 rounded bg-red-600 text-white hover:bg-red-700" aria-label="Delete">
-									<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-										<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4H9v3H4" />
-									</svg>
-								</button>
-							</div>
-							<div className="p-4 text-sm text-gray-600">Good but needs improvement</div>
-						</div>
-					</div>
-				</main>
-			</div>
-		</div>
-	);
+  const filtered = feedbacks.filter(f => {
+    if (typeFilter !== 'all' && f.feedback_type !== typeFilter) return false;
+    if (search) {
+      const s = search.toLowerCase();
+      return (f.client_name || f.name || '').toLowerCase().includes(s)
+        || (f.subject || '').toLowerCase().includes(s)
+        || (f.message || '').toLowerCase().includes(s)
+        || (f.lawyer_name || '').toLowerCase().includes(s);
+    }
+    return true;
+  });
+
+  const avgRating = feedbacks.length
+    ? (feedbacks.reduce((s, f) => s + (f.rating || 0), 0) / feedbacks.length).toFixed(1)
+    : '–';
+
+  return (
+    <div className="min-h-screen flex bg-slate-50">
+      <AdminSidebar />
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-6xl mx-auto px-4 md:px-8 py-8">
+
+          {/* Header */}
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center">
+                <MessageSquare size={20} className="text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-slate-900">Feedback Management</h1>
+                <p className="text-sm text-slate-500">View and manage all feedback</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 text-sm text-slate-500">
+              <span className="flex items-center gap-1 text-amber-500 font-semibold"><Star size={14} fill="currentColor" /> {avgRating}</span>
+              <span className="font-semibold text-slate-400">{feedbacks.length} total</span>
+            </div>
+          </div>
+
+          {/* Toast */}
+          {toast && (
+            <div className="mb-4 flex items-center gap-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl px-4 py-3 text-sm font-medium">
+              <CheckCircle2 size={16} /> {toast}
+            </div>
+          )}
+
+          {/* Search & Filter */}
+          <div className="flex flex-col sm:flex-row gap-3 mb-6">
+            <div className="relative flex-1">
+              <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input type="text" value={search} onChange={e => setSearch(e.target.value)}
+                placeholder="Search by name, subject, message…"
+                className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-400 shadow-sm" />
+              {search && (
+                <button onClick={() => setSearch('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <Filter size={14} className="text-slate-400" />
+              {TYPES.map(t => (
+                <button key={t} onClick={() => setTypeFilter(t)}
+                  className={`px-3 py-2 rounded-xl text-xs font-semibold capitalize transition ${typeFilter === t
+                    ? 'bg-amber-500 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-500 hover:bg-slate-50'}`}>
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="flex items-center justify-center py-20 gap-2 text-slate-400">
+              <Loader2 size={20} className="animate-spin" /> Loading feedback…
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm py-16 text-center">
+              <MessageSquare size={36} className="mx-auto mb-3 text-slate-300" />
+              <h3 className="text-lg font-bold text-slate-700">No Feedback Found</h3>
+              <p className="text-sm text-slate-400 mt-1">{search || typeFilter !== 'all' ? 'Try different filters' : 'No feedback submitted yet'}</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filtered.map(f => (
+                <div key={f.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition overflow-hidden">
+                  <div className="p-5 flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-4 flex-1 min-w-0">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center flex-shrink-0">
+                        <User size={18} className="text-amber-600" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="text-sm font-bold text-slate-800">{f.client_name || f.name || 'Anonymous'}</h3>
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider ${
+                            f.feedback_type === 'platform'
+                              ? 'bg-slate-100 text-slate-600'
+                              : 'bg-violet-50 text-violet-600'
+                          }`}>{f.feedback_type}</span>
+                          <div className="flex items-center gap-0.5">
+                            {[1, 2, 3, 4, 5].map(i => (
+                              <Star key={i} size={12} className={i <= (f.rating || 0) ? 'text-amber-400 fill-amber-400' : 'text-slate-200'} />
+                            ))}
+                          </div>
+                        </div>
+                        {f.lawyer_name && (
+                          <p className="text-xs text-violet-500 mt-0.5">For: {f.lawyer_name} ({f.lawyer_specialization || '–'})</p>
+                        )}
+                        {f.subject && <p className="text-xs font-semibold text-slate-600 mt-1">{f.subject}</p>}
+                        <p className="text-xs text-slate-500 mt-1 line-clamp-2">{f.message}</p>
+                        <p className="text-[10px] text-slate-300 mt-2">{new Date(f.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                      </div>
+                    </div>
+                    <button onClick={() => handleDelete(f.id)}
+                      className="flex-shrink-0 p-2 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-500 transition" title="Delete feedback">
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }

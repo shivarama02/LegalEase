@@ -16,7 +16,6 @@ import LawyerManagement from './pages/admin/LawyerManagement';
 import UserManagement from './pages/admin/UserManagement';
 import ComplaintTemplateManagement from './pages/admin/ComplaintTemplateManagement';
 import FeedbackManagement from './pages/admin/FeedbackManagement';
-import Reports from './pages/admin/Reports';
 import NotificationManagement from './pages/admin/NotificationManagement';
 import AdminSettings from './pages/admin/Settings';
 import LawInfo from './pages/user/LawInfo';
@@ -28,7 +27,8 @@ import PublicLawDetails from './pages/LawDetails';
 import ChatAssistant from './pages/user/ChatAssistant';
 import LawyerChatAssistant from './pages/lawyer/ChatAssistant';
 import LawyerProfile from './pages/lawyer/LawyerProfile';
-import LawyerAppoinment from './pages/lawyer/AppointmentSchedule';
+import ManageAppointments from './pages/lawyer/ManageAppointments';
+import AppointmentHistory from './pages/lawyer/AppointmentHistory';
 import LawyerFeedback from './pages/lawyer/Feedback'
 import ComplaintGenerator from './pages/user/ComplaintGenerator';
 import Complaints from './pages/user/Complaints';
@@ -85,7 +85,8 @@ function App() {
             <Route path="/lawyer/chat" element={<LawyerChat />} />
             <Route path="/lawyer/aichat" element={<LawyerChatAssistant />} />
             <Route path="/lawyer/LawyerProfile" element={<LawyerProfile />} />
-            <Route path="/lawyer/appointments" element={<LawyerAppoinment />} />
+            <Route path="/lawyer/appointments" element={<ManageAppointments />} />
+            <Route path="/lawyer/appointment-history" element={<AppointmentHistory />} />
             <Route path="/user/appointments" element={<UserAppointmentSchedule />} />
             <Route path="/Lawyer/lawyerfeedback" element={<LawyerFeedback />} />
             <Route path="/Lawyer/lawyernotifications" element={<LawyerNotifications />} />
@@ -101,7 +102,6 @@ function App() {
             <Route path="/admin/complaint-templates" element={<ComplaintTemplateManagement />} />
             <Route path="/admin/feedback-management" element={<FeedbackManagement />} />
             <Route path="/admin/notification-management" element={<NotificationManagement />} />
-            <Route path="/admin/reports" element={<Reports />} />
             <Route path="/admin/settings" element={<AdminSettings />} />
           </Routes>
         </main>

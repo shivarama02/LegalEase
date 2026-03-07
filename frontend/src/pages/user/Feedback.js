@@ -151,29 +151,47 @@ export default function UserFeedback() {
         <div className="max-w-5xl mx-auto px-4 md:px-8 py-8">
 
           {/* Header */}
-          <div className="flex items-center gap-3 mb-8">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center">
-              <MessageSquare size={20} className="text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900">Feedback & Reviews</h1>
-              <p className="text-sm text-slate-500">Rate lawyers you've worked with</p>
-            </div>
-          </div>
+          <div className="mb-8 text-left">
+            <div className="flex items-start justify-between">
 
-          {/* Tabs */}
-          <div className="flex gap-1 bg-slate-100 rounded-xl p-1 mb-6 w-fit">
-            {[
-              { key: 'give', label: 'Give Feedback', icon: Send },
-              { key: 'history', label: 'My Reviews', icon: Clock },
-            ].map(t => (
-              <button key={t.key} onClick={() => setTab(t.key)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
-                  tab === t.key ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-                }`}>
-                <t.icon size={14} /> {t.label}
-              </button>
-            ))}
+              {/* Left Side */}
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center">
+                  <MessageSquare size={20} className="text-white" />
+                </div>
+
+                <div>
+                  <h1 className="text-2xl font-bold text-slate-900">
+                    Feedback & Reviews
+                  </h1>
+                  <p className="text-sm text-slate-500">
+                    Rate lawyers you've worked with
+                  </p>
+                </div>
+              </div>
+
+              {/* Right Side Tabs */}
+              <div className="hidden sm:flex gap-1 bg-slate-100 rounded-xl p-1">
+                {[
+                  { key: 'give', label: 'Give Feedback', icon: Send },
+                  { key: 'history', label: 'My Reviews', icon: Clock },
+                ].map((t) => (
+                  <button
+                    key={t.key}
+                    onClick={() => setTab(t.key)}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
+                      tab === t.key
+                        ? 'bg-white text-slate-900 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                  >
+                    <t.icon size={14} />
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+
+            </div>
           </div>
 
           {/* Toasts */}
@@ -247,7 +265,7 @@ export default function UserFeedback() {
               {/* Right — Form */}
               <div className="lg:col-span-2">
                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                  <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-5">
+                  <div className="bg-gradient-to-r from-indigo-600 to-violet-600 px-6 py-5">
                     <h2 className="text-lg font-bold text-white">Write a Review</h2>
                     <p className="text-white/80 text-sm">Share your experience to help others</p>
                   </div>
@@ -329,7 +347,7 @@ export default function UserFeedback() {
 
                     {/* Submit */}
                     <button type="submit" disabled={submitting || !selectedLawyer || !rating}
-                      className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-semibold py-3 rounded-xl transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                      className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-800 hover:to-violet-800 text-white font-semibold py-3 rounded-xl transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
                       {submitting ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
                       {submitting ? 'Submitting…' : 'Submit Review'}
                     </button>

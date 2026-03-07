@@ -18,7 +18,7 @@ function useFadeObserver() {
 
 const CONTACT_INFO = [
   { icon: Mail,    label: 'Email',    value: 'support@legalease.in',   sub: 'We reply within 24 hours' },
-  { icon: Phone,   label: 'Phone',    value: '+91 98765 43210',        sub: 'Mon–Fri, 9 AM – 6 PM IST' },
+  { icon: Phone,   label: 'Phone',    value: '+91 90000 00000',        sub: 'Mon–Fri, 9 AM – 6 PM IST' },
   { icon: MapPin,  label: 'Location', value: 'Kerala, India',          sub: 'Operating fully online' },
   { icon: Clock,   label: 'Hours',    value: '24/7 AI Assistant',      sub: 'Human support on weekdays' },
 ];

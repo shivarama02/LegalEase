@@ -6,6 +6,26 @@ import {
   ShieldCheck, Pencil, X, Save, Loader2,
 } from 'lucide-react';
 
+/* ─── ProfileField (outside component to prevent remount on state change) ── */
+function ProfileField({ label, type = 'text', isEditing, displayValue, value, onEdit, ...rest }) {
+  return (
+    <div className="flex-1">
+      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">{label}</label>
+      {!isEditing ? (
+        <p className="text-sm font-medium text-slate-800">{displayValue || '—'}</p>
+      ) : (
+        <input
+          type={type}
+          className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 transition"
+          value={value ?? ''}
+          onChange={e => onEdit(e.target.value)}
+          {...rest}
+        />
+      )}
+    </div>
+  );
+}
+
 export default function UserProfile() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -93,23 +113,13 @@ export default function UserProfile() {
   const fullName = client?.cname || client?.username || 'User';
   const photoSrc = client?.photo_full_url || '';
 
-  /* ─── Field helper ─────────────────────────────────────────────────── */
-  const Field = ({ label, field, type = 'text', ...rest }) => (
-    <div className="flex-1">
-      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">{label}</label>
-      {!isEditing ? (
-        <p className="text-sm font-medium text-slate-800">{client?.[field] || '—'}</p>
-      ) : (
-        <input
-          type={type}
-          className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 transition"
-          value={editData[field]}
-          onChange={e => setEditData(d => ({ ...d, [field]: e.target.value }))}
-          {...rest}
-        />
-      )}
-    </div>
-  );
+  /* helper to bind a field for ProfileField */
+  const f = (field) => ({
+    isEditing,
+    displayValue: client?.[field] || '—',
+    value: editData[field],
+    onEdit: v => setEditData(d => ({ ...d, [field]: v })),
+  });
 
   /* ─── Render ───────────────────────────────────────────────────────── */
   return (
@@ -175,13 +185,16 @@ export default function UserProfile() {
                         </div>
                       )}
                     </div>
-                    <button onClick={() => fileInputRef.current?.click()} disabled={uploading}
-                      className="absolute inset-0 rounded-3xl bg-black/0 group-hover:bg-black/40 flex items-center justify-center transition-all cursor-pointer">
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center text-white">
-                        {uploading ? <Loader2 size={22} className="animate-spin" /> : <Camera size={22} />}
-                        <span className="text-[10px] font-semibold mt-1">{uploading ? 'Uploading…' : 'Change Photo'}</span>
-                      </div>
-                    </button>
+                    {/* Upload overlay — only in edit mode */}
+                    {isEditing && (
+                      <button onClick={() => fileInputRef.current?.click()} disabled={uploading}
+                        className="absolute inset-0 rounded-3xl bg-black/40 flex items-center justify-center cursor-pointer">
+                        <div className="flex flex-col items-center text-white">
+                          {uploading ? <Loader2 size={22} className="animate-spin" /> : <Camera size={22} />}
+                          <span className="text-[10px] font-semibold mt-1">{uploading ? 'Uploading…' : 'Change Photo'}</span>
+                        </div>
+                      </button>
+                    )}
                     <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
                   </div>
                 </div>
@@ -218,30 +231,30 @@ export default function UserProfile() {
                 {/* ── Personal Info ───────────────────────────────────── */}
                 <div className="mb-6">
                   <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4">Personal Information</h2>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5 text-left">
                     <div className="flex items-start gap-3">
                       <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0 mt-0.5">
                         <UserIcon size={15} className="text-indigo-500" />
                       </div>
-                      <Field label="Full Name" field="cname" />
+                      <ProfileField label="Full Name" {...f('cname')} />
                     </div>
                     <div className="flex items-start gap-3">
                       <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0 mt-0.5">
                         <Mail size={15} className="text-indigo-500" />
                       </div>
-                      <Field label="Email" field="email" type="email" />
+                      <ProfileField label="Email" type="email" {...f('email')} />
                     </div>
                     <div className="flex items-start gap-3">
                       <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0 mt-0.5">
                         <Phone size={15} className="text-indigo-500" />
                       </div>
-                      <Field label="Phone" field="phone" />
+                      <ProfileField label="Phone" {...f('phone')} />
                     </div>
                     <div className="flex items-start gap-3">
                       <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0 mt-0.5">
                         <Calendar size={15} className="text-indigo-500" />
                       </div>
-                      <Field label="Date of Birth" field="dob" type="date" />
+                      <ProfileField label="Date of Birth" type="date" {...f('dob')} />
                     </div>
                   </div>
                 </div>
@@ -251,7 +264,7 @@ export default function UserProfile() {
                 {/* ── Address ─────────────────────────────────────────── */}
                 <div>
                   <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4">Address</h2>
-                  <div className="flex items-start gap-3">
+                  <div className="flex items-start gap-3 text-left">
                     <div className="w-9 h-9 rounded-xl bg-violet-50 flex items-center justify-center flex-shrink-0 mt-0.5">
                       <MapPin size={15} className="text-violet-500" />
                     </div>

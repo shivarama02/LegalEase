@@ -230,7 +230,7 @@ export default function LawyerProfileView() {
                         <div>
                           <p className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Consultation Fee</p>
                           <p className="text-sm font-bold text-indigo-700">
-                            {lawyer.charge ? `₹${Number(lawyer.charge).toLocaleString('en-IN')}/hr` : 'N/A'}
+                            {lawyer.charge ? `₹${Number(lawyer.charge).toLocaleString('en-IN')}` : 'N/A'}
                           </p>
                         </div>
                       </div>

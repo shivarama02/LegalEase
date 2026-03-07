@@ -3,12 +3,49 @@ from django.contrib.auth.hashers import make_password, check_password
 from rest_framework import serializers
 from rest_framework.authtoken.models import Token
 from django.db.models import Avg
-from .models import Client, Lawyer, LawInfo, Complaint, LawDetail, ComplaintDraft, Appointment, Feedback, LawList, ChatRoom, ChatMessage
+from .models import Client, Lawyer, Complaint, ComplaintDraft, Appointment, Feedback, ChatRoom, ChatMessage, Notification, LawDomain, LawCategory, Law, LawSection, LawSectionDetail
 
 
-class LawInfoSerializer(serializers.ModelSerializer):
+# ──────────────────────────────────────────
+# LAW MODULE SERIALIZERS
+# ──────────────────────────────────────────
+
+class LawSectionDetailSerializer(serializers.ModelSerializer):
     class Meta:
-        model = LawInfo
+        model = LawSectionDetail
+        fields = '__all__'
+
+
+class LawSectionSerializer(serializers.ModelSerializer):
+    detail = LawSectionDetailSerializer(read_only=True)
+
+    class Meta:
+        model = LawSection
+        fields = '__all__'
+
+
+class LawSerializer(serializers.ModelSerializer):
+    sections_count = serializers.IntegerField(source='sections.count', read_only=True)
+
+    class Meta:
+        model = Law
+        fields = '__all__'
+
+
+class LawCategorySerializer(serializers.ModelSerializer):
+    laws_count = serializers.IntegerField(source='laws.count', read_only=True)
+    domain_name = serializers.CharField(source='domain.domain_name', read_only=True)
+
+    class Meta:
+        model = LawCategory
+        fields = '__all__'
+
+
+class LawDomainSerializer(serializers.ModelSerializer):
+    categories = LawCategorySerializer(many=True, read_only=True)
+
+    class Meta:
+        model = LawDomain
         fields = '__all__'
 
 
@@ -152,10 +189,15 @@ class LoginSerializer(serializers.Serializer):
                 except Lawyer.DoesNotExist:
                     user_obj = Lawyer.objects.get(username=identifier)
             except Lawyer.DoesNotExist:
-                raise serializers.ValidationError('Invalid lawyer credentials')
-        elif role == 'admin':
-            # Simplistic: treat no admin model yet
-            raise serializers.ValidationError('Admin auth not implemented')
+                # Allow superuser / staff login through the lawyer form
+                from django.contrib.auth.models import User as AuthUser
+                try:
+                    admin_user = AuthUser.objects.get(username=identifier, is_staff=True)
+                    attrs['obj'] = admin_user
+                    attrs['is_admin'] = True
+                    return attrs
+                except AuthUser.DoesNotExist:
+                    raise serializers.ValidationError('Invalid lawyer credentials')
 
         if hasattr(user_obj, 'password') and not check_password(password, user_obj.password):
             raise serializers.ValidationError('Invalid credentials')
@@ -164,30 +206,10 @@ class LoginSerializer(serializers.Serializer):
         return attrs
 
 
-class LawDetailSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = LawDetail
-        fields = '__all__'
-        # Note: includes 'penalties' TextField introduced for detailed punishments
-
-
-class LawListSerializer(serializers.ModelSerializer):
-    items = LawDetailSerializer(many=True, read_only=True)
-    item_ids = serializers.PrimaryKeyRelatedField(
-        many=True, queryset=LawDetail.objects.all(), write_only=True, required=False, source='items'
-    )
-
-    class Meta:
-        model = LawList
-        fields = [
-            'id', 'title', 'slug', 'description', 'category', 'items', 'item_ids', 'created_at', 'updated_at'
-        ]
-        read_only_fields = ['created_at', 'updated_at']
-
 class ComplaintSerializer(serializers.ModelSerializer):
-    law_references = LawDetailSerializer(many=True, read_only=True)
+    law_references = LawSectionSerializer(many=True, read_only=True)
     law_reference_ids = serializers.PrimaryKeyRelatedField(
-        many=True, queryset=LawDetail.objects.all(), write_only=True, required=False, source='law_references'
+        many=True, queryset=LawSection.objects.all(), write_only=True, required=False, source='law_references'
     )
     class Meta:
         model = Complaint
@@ -282,6 +304,41 @@ class FeedbackSerializer(serializers.ModelSerializer):
         if not (1 <= int(value) <= 5):
             raise serializers.ValidationError('Rating must be between 1 and 5')
         return value
+
+
+# ──────────────────────────────────────────
+# NOTIFICATION SERIALIZER
+# ──────────────────────────────────────────
+
+class NotificationSerializer(serializers.ModelSerializer):
+    time_ago = serializers.SerializerMethodField(read_only=True)
+
+    class Meta:
+        model = Notification
+        fields = [
+            'id', 'user', 'title', 'message', 'notification_type',
+            'is_read', 'related_id', 'created_at', 'time_ago',
+        ]
+        read_only_fields = ['user', 'created_at']
+
+    def get_time_ago(self, obj):
+        from django.utils import timezone
+        now = timezone.now()
+        diff = now - obj.created_at
+        seconds = diff.total_seconds()
+        if seconds < 60:
+            return 'Just now'
+        minutes = int(seconds // 60)
+        if minutes < 60:
+            return f'{minutes}m ago'
+        hours = int(minutes // 60)
+        if hours < 24:
+            return f'{hours}h ago'
+        days = int(hours // 24)
+        if days < 7:
+            return f'{days}d ago'
+        weeks = int(days // 7)
+        return f'{weeks}w ago'
 
 
 # ──────────────────────────────────────────

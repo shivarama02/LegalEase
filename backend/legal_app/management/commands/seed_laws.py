@@ -1,6 +1,77 @@
 from django.core.management.base import BaseCommand
 from django.utils.text import slugify
-from legal_app.models import LawDetail, LawList
+from legal_app.models import LawDomain, LawCategory, Law, LawSection, LawSectionDetail
+
+# ─── DOMAINS & CATEGORIES ────────────────────────────────────
+DOMAIN_CATEGORIES = [
+    {
+        'domain_name': 'Criminal & Penal Law',
+        'description': 'Laws related to crimes, punishments, and criminal procedures.',
+        'display_order': 1,
+        'categories': [
+            {'category_name': 'Criminal Law', 'slug': 'ipc', 'description': 'Laws dealing with crimes and punishment.'},
+        ],
+    },
+    {
+        'domain_name': 'Civil & Procedural Law',
+        'description': 'Laws governing private disputes, contracts, torts, and civil procedures.',
+        'display_order': 2,
+        'categories': [
+            {'category_name': 'Civil Law', 'slug': 'civil', 'description': 'Private disputes between individuals or organizations.'},
+        ],
+    },
+    {
+        'domain_name': 'Family & Personal Law',
+        'description': 'Laws governing family relationships, marriage, divorce, adoption, and succession.',
+        'display_order': 3,
+        'categories': [
+            {'category_name': 'Family Law', 'slug': 'family', 'description': 'Legal matters involving family relationships.'},
+        ],
+    },
+    {
+        'domain_name': 'Employment & Labour Law',
+        'description': 'Laws governing workplace relationships, wages, safety, and industrial disputes.',
+        'display_order': 4,
+        'categories': [
+            {'category_name': 'Employment Law', 'slug': 'labour', 'description': 'Rights and obligations in workplace relationships.'},
+        ],
+    },
+    {
+        'domain_name': 'Property & Land Law',
+        'description': 'Laws related to property ownership, transfer, land acquisition, and real estate.',
+        'display_order': 5,
+        'categories': [
+            {'category_name': 'Property Law', 'slug': 'property', 'description': 'Ownership and use of real estate and personal property.'},
+        ],
+    },
+    {
+        'domain_name': 'Consumer & Trade Law',
+        'description': 'Laws protecting consumer rights and regulating trade practices.',
+        'display_order': 6,
+        'categories': [
+            {'category_name': 'Consumer Law', 'slug': 'consumer', 'description': 'Protection of consumer rights and fair trade practices.'},
+        ],
+    },
+    {
+        'domain_name': 'Cyber & Digital Law',
+        'description': 'Laws governing cyberspace, digital transactions, and online offenses.',
+        'display_order': 7,
+        'categories': [
+            {'category_name': 'Cyber Crime', 'slug': 'cyber', 'description': 'Online fraud, hacking, phishing & identity theft.'},
+        ],
+    },
+]
+
+ITEMS_BY_SLUG = {}
+DEFAULT_PENALTIES = {
+    'ipc': 'Penalties vary per section (imprisonment and/or fine) as specified in the IPC/BNS.',
+    'cyber': 'Penalties vary by section of the IT Act and related rules; may include imprisonment and fines.',
+    'consumer': 'Includes fines, imprisonment for spurious/adulterated goods, and compensation orders.',
+    'labour': 'Non-compliance attracts fines and/or imprisonment depending on the specific statute.',
+    'property': 'Primarily civil remedies; criminal penalties may apply via IPC for fraud/forgery.',
+    'family': 'Primarily civil decrees; criminal liability may arise via IPC (e.g., bigamy, dowry).',
+    'civil': 'No direct criminal penalties; provides civil procedures/remedies.',
+}
 
 # ------------------ CRIMINAL LAW ------------------
 CRIMINAL_ITEMS = [
@@ -286,91 +357,87 @@ CYBER_ITEMS = [
 ]
 
 
-# ------------------ COMMAND ------------------
+ITEMS_BY_SLUG['ipc'] = CRIMINAL_ITEMS
+ITEMS_BY_SLUG['civil'] = CIVIL_ITEMS
+ITEMS_BY_SLUG['family'] = FAMILY_ITEMS
+ITEMS_BY_SLUG['labour'] = EMPLOYMENT_ITEMS
+ITEMS_BY_SLUG['property'] = PROPERTY_ITEMS
+ITEMS_BY_SLUG['consumer'] = CONSUMER_ITEMS
+ITEMS_BY_SLUG['cyber'] = CYBER_ITEMS
+
+
 class Command(BaseCommand):
-    help = "Seed LawDetail and LawList entries for all law categories."
-
-    def seed_category(self, category_name, slug, items):
-        details = []
-        # Default penalties hint per category when not explicitly provided
-        default_penalties_map = {
-            'ipc': 'Penalties vary per section (imprisonment and/or fine) as specified in the IPC/BNS.',
-            'cyber': 'Penalties vary by section of the IT Act and related rules; may include imprisonment and fines.',
-            'consumer': 'Includes fines, imprisonment for spurious/adulterated goods, and compensation orders.',
-            'labour': 'Non-compliance attracts fines and/or imprisonment depending on the specific statute.',
-            'property': 'Primarily civil remedies; criminal penalties may apply via IPC for fraud/forgery.',
-            'family': 'Primarily civil decrees; criminal liability may arise via IPC (e.g., bigamy, dowry).',
-            'civil': 'No direct criminal penalties; provides civil procedures/remedies.',
-            'corporate': 'Fines and/or imprisonment for certain non-compliances; refer to specific sections.',
-        }
-
-        for item in items:
-            # Support tuples: (title, summary[, full_text[, related_sections[, penalties]]])
-            title = item[0]
-            summary = item[1] if len(item) > 1 else ''
-            full_text = item[2] if len(item) > 2 else f"{title}: {summary}".strip()
-            related_sections = item[3] if len(item) > 3 else ''
-            penalties = item[4] if len(item) > 4 else default_penalties_map.get(slug, '')
-
-            obj, created = LawDetail.objects.get_or_create(
-                title=title,
-                category=slug,
-                defaults={
-                    'statute_name': title,
-                    'section_reference': '',
-                    'summary': summary,
-                    'full_text': full_text,
-                    'related_sections': related_sections,
-                    'tags': '',
-                    'source_url': '',
-                    'penalties': penalties,
-                }
-            )
-
-            # If it existed, bring any missing fields up-to-date without overriding user edits
-            changed = False
-            if not created:
-                if not obj.full_text:
-                    obj.full_text = full_text
-                    changed = True
-                if not obj.related_sections and related_sections:
-                    obj.related_sections = related_sections
-                    changed = True
-                if not getattr(obj, 'penalties', '') and penalties:
-                    obj.penalties = penalties
-                    changed = True
-                if changed:
-                    obj.save(update_fields=['full_text', 'related_sections', 'penalties'])
-
-            details.append(obj)
-            self.stdout.write((self.style.SUCCESS if created else (self.style.WARNING if not changed else self.style.SUCCESS))(
-                f"{slug}: {'created' if created else ('updated' if changed else 'exists')} - {title}"
-            ))
-
-        law_list, _ = LawList.objects.get_or_create(
-            slug=slugify(category_name),
-            defaults={'title': category_name, 'description': f'{category_name} related acts/statutes', 'category': slug}
-        )
-        law_list.items.set([x.id for x in details])
-        law_list.save()
-        self.stdout.write(self.style.SUCCESS(f"{category_name} list attached {len(details)} items"))
+    help = "Seed the five-level law hierarchy (Domain → Category → Law → Section → SectionDetail)."
 
     def handle(self, *args, **options):
-        self.stdout.write(self.style.MIGRATE_HEADING("Seeding LawDetail and LawList..."))
+        self.stdout.write(self.style.MIGRATE_HEADING("Seeding law hierarchy..."))
 
-        # Fix historical mismatch: use 'labour' (existing CATEGORY_CHOICES) instead of 'employment'
-        from legal_app.models import LawDetail as LD, LawList as LL
-        updated = LD.objects.filter(category='employment').update(category='labour')
-        if updated:
-            self.stdout.write(self.style.WARNING(f"Corrected {updated} LawDetail rows from 'employment' to 'labour'"))
-        LL.objects.filter(category='employment').update(category='labour')
+        for dc in DOMAIN_CATEGORIES:
+            domain, _ = LawDomain.objects.get_or_create(
+                domain_name=dc['domain_name'],
+                defaults={
+                    'description': dc['description'],
+                    'display_order': dc['display_order'],
+                },
+            )
 
-        self.seed_category("Criminal Law", "ipc", CRIMINAL_ITEMS)
-        self.seed_category("Civil Law", "civil", CIVIL_ITEMS)
-        self.seed_category("Family Law", "family", FAMILY_ITEMS)
-        self.seed_category("Employment Law", "labour", EMPLOYMENT_ITEMS)
-        self.seed_category("Property Law", "property", PROPERTY_ITEMS)
-        self.seed_category("Consumer Law", "consumer", CONSUMER_ITEMS)
-        self.seed_category("Cyber Law", "cyber", CYBER_ITEMS)
+            for cat_data in dc['categories']:
+                category, _ = LawCategory.objects.get_or_create(
+                    slug=cat_data['slug'],
+                    defaults={
+                        'domain': domain,
+                        'category_name': cat_data['category_name'],
+                        'description': cat_data['description'],
+                    },
+                )
+
+                items = ITEMS_BY_SLUG.get(cat_data['slug'], [])
+                for item in items:
+                    title = item[0]
+                    summary = item[1] if len(item) > 1 else ''
+                    full_text = item[2] if len(item) > 2 else ''
+                    examples = item[3] if len(item) > 3 else ''
+                    penalties = item[4] if len(item) > 4 else DEFAULT_PENALTIES.get(cat_data['slug'], '')
+
+                    law, law_created = Law.objects.get_or_create(
+                        category=category,
+                        law_title=title,
+                        defaults={'summary': summary},
+                    )
+
+                    section, sec_created = LawSection.objects.get_or_create(
+                        law=law,
+                        section_number='General',
+                        defaults={
+                            'section_title': f'{title} — Overview',
+                            'section_text': full_text or f'{title}: {summary}',
+                        },
+                    )
+
+                    if sec_created or not hasattr(section, 'detail'):
+                        LawSectionDetail.objects.get_or_create(
+                            section=section,
+                            defaults={
+                                'simplified_explanation': summary,
+                                'offence_description': full_text or summary,
+                                'imprisonment_term': '',
+                                'fine_amount': '',
+                                'compensation': '',
+                                'bailable_status': '',
+                                'cognizable_status': '',
+                                'example_scenario': examples,
+                            },
+                        )
+
+                    tag = 'created' if law_created else 'exists'
+                    self.stdout.write(
+                        (self.style.SUCCESS if law_created else self.style.WARNING)(
+                            f"  [{cat_data['slug']}] {tag}: {title}"
+                        )
+                    )
+
+                self.stdout.write(
+                    self.style.SUCCESS(f"  → {category.category_name}: {len(items)} laws processed")
+                )
 
         self.stdout.write(self.style.SUCCESS("✅ Seeding completed successfully."))

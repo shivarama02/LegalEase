@@ -1,209 +1,202 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import AdminSidebar from '../../components/AdminSidebar';
+import { apiUrl } from '../../api';
+import {
+  Users, UserCog, Scale, MessageSquare, CalendarDays, FileText,
+  BarChart3, Loader2, TrendingUp, ArrowRight, Star,
+} from 'lucide-react';
 
 export default function AdminDashboard() {
+  const token = sessionStorage.getItem('authToken');
+  const headers = token ? { Authorization: `Token ${token}` } : {};
+
+  const [stats, setStats] = useState(null);
+  const [recentFeedback, setRecentFeedback] = useState([]);
+  const [recentAppointments, setRecentAppointments] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      setLoading(true);
+      try {
+        const [clientsRes, lawyersRes, feedbacksRes, appointmentsRes, lawsRes, complaintsRes] =
+          await Promise.all([
+            fetch(apiUrl('/clients/'), { headers }),
+            fetch(apiUrl('/lawyers/'), { headers }),
+            fetch(apiUrl('/feedbacks/'), { headers }),
+            fetch(apiUrl('/appointments/'), { headers }),
+            fetch(apiUrl('/laws/'), { headers }),
+            fetch(apiUrl('/complaints/'), { headers }),
+          ]);
+
+        const parse = async (res) => {
+          if (!res.ok) return [];
+          const d = await res.json();
+          return Array.isArray(d) ? d : d.results || [];
+        };
+
+        const clients = await parse(clientsRes);
+        const lawyers = await parse(lawyersRes);
+        const feedbacks = await parse(feedbacksRes);
+        const appointments = await parse(appointmentsRes);
+        const laws = await parse(lawsRes);
+        const complaints = await parse(complaintsRes);
+
+        setStats({
+          users: clients.length,
+          lawyers: lawyers.length,
+          feedbacks: feedbacks.length,
+          appointments: appointments.length,
+          laws: laws.length,
+          complaints: complaints.length,
+        });
+        setRecentFeedback(feedbacks.slice(0, 5));
+        setRecentAppointments(appointments.slice(0, 5));
+      } catch { }
+      finally { setLoading(false); }
+    }
+    load();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const statCards = stats ? [
+    { label: 'Users', value: stats.users, icon: Users, color: 'from-blue-500 to-cyan-500', bg: 'bg-blue-50', text: 'text-blue-600', to: '/admin/user-management' },
+    { label: 'Lawyers', value: stats.lawyers, icon: UserCog, color: 'from-emerald-500 to-teal-500', bg: 'bg-emerald-50', text: 'text-emerald-600', to: '/admin/lawyer-management' },
+    { label: 'Feedback', value: stats.feedbacks, icon: MessageSquare, color: 'from-amber-500 to-orange-500', bg: 'bg-amber-50', text: 'text-amber-600', to: '/admin/feedback-management' },
+    { label: 'Appointments', value: stats.appointments, icon: CalendarDays, color: 'from-violet-500 to-purple-500', bg: 'bg-violet-50', text: 'text-violet-600', to: '/admin/reports' },
+    { label: 'Laws', value: stats.laws, icon: Scale, color: 'from-indigo-500 to-blue-500', bg: 'bg-indigo-50', text: 'text-indigo-600', to: '/admin/law-info-management' },
+    { label: 'Complaints', value: stats.complaints, icon: FileText, color: 'from-rose-500 to-pink-500', bg: 'bg-rose-50', text: 'text-rose-600', to: '/admin/reports' },
+  ] : [];
+
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      {/* Sidebar (as requested: add AdminSidebar here) */}
+    <div className="min-h-screen flex bg-slate-50">
       <AdminSidebar />
-      <div className="flex-1">
-        {/* Header */}
-        <header className="border-b bg-white">
-          <div className="container mx-auto px-4 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                {/* lucide icon equivalent */}
-                <svg className="h-8 w-8 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="3" width="7" height="7" />
-                  <rect x="14" y="3" width="7" height="7" />
-                  <rect x="14" y="14" width="7" height="7" />
-                  <rect x="3" y="14" width="7" height="7" />
-                </svg>
-                <div>
-                  <h1 className="text-2xl font-bold text-gray-800">Admin Dashboard</h1>
-                  <p className="text-sm text-gray-500">System Management & Monitoring</p>
-                </div>
-              </div>
-              <Link to="/" className="text-sm text-blue-600 hover:underline">Back to Home</Link>
-            </div>
-          </div>
-        </header>
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-6xl mx-auto px-4 md:px-8 py-8">
 
-        {/* Main */}
-        <main className="container mx-auto px-4 py-8">
-          {/* Stats Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <div className="bg-white rounded-lg shadow p-4">
-              <p className="text-sm text-gray-500">Total Users</p>
-              <div className="flex items-baseline justify-between mt-2">
-                <h3 className="text-3xl font-bold text-gray-800">1,234</h3>
-                <span className="text-sm font-medium text-blue-600">+12%</span>
+          {/* Header */}
+          <div className="mb-8">
+            <div className="flex items-center gap-3 mb-1">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center">
+                <BarChart3 size={20} className="text-white" />
               </div>
-            </div>
-            <div className="bg-white rounded-lg shadow p-4">
-              <p className="text-sm text-gray-500">Total Lawyers</p>
-              <div className="flex items-baseline justify-between mt-2">
-                <h3 className="text-3xl font-bold text-gray-800">89</h3>
-                <span className="text-sm font-medium text-green-600">+5%</span>
-              </div>
-            </div>
-            <div className="bg-white rounded-lg shadow p-4">
-              <p className="text-sm text-gray-500">Total Laws</p>
-              <div className="flex items-baseline justify-between mt-2">
-                <h3 className="text-3xl font-bold text-gray-800">456</h3>
-                <span className="text-sm font-medium text-purple-600">+8%</span>
-              </div>
-            </div>
-            <div className="bg-white rounded-lg shadow p-4">
-              <p className="text-sm text-gray-500">Total Complaints</p>
-              <div className="flex items-baseline justify-between mt-2">
-                <h3 className="text-3xl font-bold text-gray-800">342</h3>
-                <span className="text-sm font-medium text-orange-600">+15%</span>
+              <div>
+                <h1 className="text-2xl font-bold text-slate-900">Admin Dashboard</h1>
+                <p className="text-sm text-slate-500">System overview & management</p>
               </div>
             </div>
           </div>
 
-          {/* Admin Modules Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6">
-            <Link to="/admin/law-info-management" className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition cursor-pointer block">
-              <div className="w-12 h-12 rounded-lg bg-blue-500 flex items-center justify-center mb-3">
-                {/* scale icon */}
-                <svg className="h-6 w-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 3h18" />
-                  <path d="M12 3v18" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-semibold text-gray-800">Law Info Management</h3>
-              <p className="text-sm text-gray-500">Add, edit, or remove legal information categories</p>
-            </Link>
-
-            <Link to="/admin/lawyer-management" className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition cursor-pointer block">
-              <div className="w-12 h-12 rounded-lg bg-green-500 flex items-center justify-center mb-3">
-                {/* user-cog icon */}
-                <svg className="h-6 w-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="7" r="4" />
-                  <path d="M6 21v-2a4 4 0 0 1 4-4h4" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-semibold text-gray-800">Lawyer Management</h3>
-              <p className="text-sm text-gray-500">Full CRUD operations on lawyer profiles</p>
-            </Link>
-
-            <Link to="/admin/user-management" className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition cursor-pointer block">
-              <div className="w-12 h-12 rounded-lg bg-purple-500 flex items-center justify-center mb-3">
-                {/* users icon */}
-                <svg className="h-6 w-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2" />
-                  <circle cx="9" cy="7" r="4" />
-                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-semibold text-gray-800">User Management</h3>
-              <p className="text-sm text-gray-500">Manage user accounts and permissions</p>
-            </Link>
-
-            <Link to="/admin/complaint-templates" className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition cursor-pointer block">
-              <div className="w-12 h-12 rounded-lg bg-orange-500 flex items-center justify-center mb-3">
-                {/* file-text icon */}
-                <svg className="h-6 w-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                  <path d="M14 2v6h6" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-semibold text-gray-800">Complaint Templates</h3>
-              <p className="text-sm text-gray-500">Create and update complaint templates</p>
-            </Link>
-
-            <Link to="/admin/feedback-management" className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition cursor-pointer block">
-              <div className="w-12 h-12 rounded-lg bg-pink-500 flex items-center justify-center mb-3">
-                {/* message-square icon */}
-                <svg className="h-6 w-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-semibold text-gray-800">Feedback Management</h3>
-              <p className="text-sm text-gray-500">View and analyze user feedback</p>
-            </Link>
-
-            {/* <Link to="/admin/notification-management" className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition cursor-pointer block">
-              <div className="w-12 h-12 rounded-lg bg-yellow-500 flex items-center justify-center mb-3">
-                
-                <svg className="h-6 w-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
-                  <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-semibold text-gray-800">Notifications</h3>
-              <p className="text-sm text-gray-500">Send notifications to users or lawyers</p>
-            </Link> */}
-
-            <Link to="/admin/reports" className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition cursor-pointer block">
-              <div className="w-12 h-12 rounded-lg bg-indigo-500 flex items-center justify-center mb-3">
-                {/* bar-chart-3 icon */}
-                <svg className="h-6 w-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 3v18h18" />
-                  <rect x="7" y="12" width="3" height="6" />
-                  <rect x="12" y="8" width="3" height="10" />
-                  <rect x="17" y="5" width="3" height="13" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-semibold text-gray-800">Reports</h3>
-              <p className="text-sm text-gray-500">Generate system usage reports</p>
-            </Link>
-
-            {/* <Link to="/admin/settings" className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition cursor-pointer block">
-              <div className="w-12 h-12 rounded-lg bg-gray-500 flex items-center justify-center mb-3">
-                
-                <svg className="h-6 w-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="3" />
-                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09c.7 0 1.31-.4 1.51-1a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06c.46.46 1.12.6 1.82.33H9A1.65 1.65 0 0 0 10 4.09V4a2 2 0 0 1 4 0v.09c0 .7.4 1.31 1 1.51.7.27 1.36.13 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06c-.46.46-.6 1.12-.33 1.82V9c.6.2 1 .81 1 1.51V12a2 2 0 0 1-2 2h-.09c-.7 0-1.31.4-1.51 1z" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-semibold text-gray-800">Settings</h3>
-              <p className="text-sm text-gray-500">Configure system preferences</p>
-            </Link> */}
-          </div>
-
-          {/* Recent Activity */}
-          <div className="bg-white rounded-lg shadow mt-8">
-            <div className="border-b px-6 py-4">
-              <h3 className="text-lg font-semibold text-gray-800">Recent Activity</h3>
-              <p className="text-sm text-gray-500">Latest system events and actions</p>
+          {loading ? (
+            <div className="flex items-center justify-center py-20 gap-2 text-slate-400">
+              <Loader2 size={20} className="animate-spin" /> Loading dashboard…
             </div>
-            <div className="p-6 space-y-4">
-              <div className="flex items-center justify-between py-2 border-b last:border-0">
-                <div>
-                  <p className="font-medium text-gray-800">New lawyer registered</p>
-                  <p className="text-sm text-gray-500">by Dr. Sharma</p>
-                </div>
-                <span className="text-sm text-gray-500">2 hours ago</span>
+          ) : (
+            <>
+              {/* Stat Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+                {statCards.map(s => (
+                  <Link key={s.label} to={s.to}
+                    className="group bg-white rounded-2xl border border-slate-200 shadow-sm p-5 hover:shadow-md transition">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className={`w-10 h-10 rounded-xl ${s.bg} flex items-center justify-center`}>
+                        <s.icon size={18} className={s.text} />
+                      </div>
+                      <ArrowRight size={14} className="text-slate-300 group-hover:text-slate-500 transition" />
+                    </div>
+                    <p className="text-3xl font-extrabold text-slate-900">{s.value}</p>
+                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mt-1">{s.label}</p>
+                  </Link>
+                ))}
               </div>
-              <div className="flex items-center justify-between py-2 border-b last:border-0">
-                <div>
-                  <p className="font-medium text-gray-800">Complaint template updated</p>
-                  <p className="text-sm text-gray-500">by Admin</p>
+
+              {/* Quick Actions */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                {/* Recent Feedback */}
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                  <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                    <div>
+                      <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Recent Feedback</h2>
+                      <p className="text-xs text-slate-400">Latest user reviews</p>
+                    </div>
+                    <Link to="/admin/feedback-management" className="text-xs font-semibold text-indigo-600 hover:text-indigo-700">View All</Link>
+                  </div>
+                  <div className="divide-y divide-slate-50">
+                    {recentFeedback.length === 0 ? (
+                      <div className="px-5 py-8 text-center text-sm text-slate-400">No feedback yet</div>
+                    ) : recentFeedback.map(fb => (
+                      <div key={fb.id} className="px-5 py-3.5 flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-lg bg-amber-50 flex items-center justify-center flex-shrink-0">
+                          <Star size={14} className="text-amber-500" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-slate-800 truncate">{fb.client_name || fb.name || 'User'}</p>
+                          <p className="text-xs text-slate-400 truncate">{fb.subject || fb.message?.substring(0, 50)}</p>
+                        </div>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <Star size={11} className="fill-amber-400 text-amber-400" />
+                          <span className="text-xs font-bold text-amber-600">{fb.rating}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <span className="text-sm text-gray-500">5 hours ago</span>
-              </div>
-              <div className="flex items-center justify-between py-2 border-b last:border-0">
-                <div>
-                  <p className="font-medium text-gray-800">User feedback submitted</p>
-                  <p className="text-sm text-gray-500">by John Doe</p>
+
+                {/* Recent Appointments */}
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                  <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                    <div>
+                      <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Recent Appointments</h2>
+                      <p className="text-xs text-slate-400">Latest bookings</p>
+                    </div>
+                    <Link to="/admin/reports" className="text-xs font-semibold text-indigo-600 hover:text-indigo-700">View All</Link>
+                  </div>
+                  <div className="divide-y divide-slate-50">
+                    {recentAppointments.length === 0 ? (
+                      <div className="px-5 py-8 text-center text-sm text-slate-400">No appointments yet</div>
+                    ) : recentAppointments.map(a => (
+                      <div key={a.id} className="px-5 py-3.5 flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-lg bg-violet-50 flex items-center justify-center flex-shrink-0">
+                          <CalendarDays size={14} className="text-violet-500" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-slate-800 truncate">{a.name || 'Client'}</p>
+                          <p className="text-xs text-slate-400">{a.case_type} • {a.appointment_date}</p>
+                        </div>
+                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-lg uppercase ${
+                          a.status === 'completed' ? 'bg-emerald-50 text-emerald-600'
+                          : a.status === 'cancelled' ? 'bg-red-50 text-red-500'
+                          : 'bg-blue-50 text-blue-600'
+                        }`}>{a.status}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <span className="text-sm text-gray-500">1 day ago</span>
               </div>
-              <div className="flex items-center justify-between py-2 border-b last:border-0">
-                <div>
-                  <p className="font-medium text-gray-800">New law added</p>
-                  <p className="text-sm text-gray-500">by Admin</p>
+
+              {/* Platform Summary */}
+              <div className="bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 rounded-2xl p-6 text-white">
+                <div className="flex items-center gap-3 mb-2">
+                  <TrendingUp size={20} />
+                  <h3 className="text-lg font-bold">Platform Summary</h3>
                 </div>
-                <span className="text-sm text-gray-500">2 days ago</span>
+                <p className="text-white/70 text-sm mb-4">Quick overview of your legal platform's activity.</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  {stats && [
+                    { label: 'Active Users', val: stats.users },
+                    { label: 'Registered Lawyers', val: stats.lawyers },
+                    { label: 'Total Feedback', val: stats.feedbacks },
+                  ].map(s => (
+                    <div key={s.label} className="bg-white/10 backdrop-blur rounded-xl p-3">
+                      <p className="text-2xl font-extrabold">{s.val}</p>
+                      <p className="text-xs text-white/70">{s.label}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          </div>
-        </main>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

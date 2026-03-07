@@ -12,22 +12,25 @@ from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse
 from io import BytesIO
 
-from .models import LawInfo, Client, Lawyer, Complaint, LawDetail, ComplaintDraft, Appointment, Feedback, LawList, ChatRoom, ChatMessage
+from .models import Client, Lawyer, Complaint, ComplaintDraft, Appointment, Feedback, ChatRoom, ChatMessage, Notification, LawDomain, LawCategory, Law, LawSection, LawSectionDetail
 from .serializers import (
-    LawInfoSerializer,
     ClientSerializer,
     LawyerSerializer,
     ClientSignupSerializer,
     LawyerSignupSerializer,
     LoginSerializer,
     ComplaintSerializer,
-    LawDetailSerializer,
     ComplaintDraftSerializer,
     AppointmentSerializer,
     FeedbackSerializer,
-    LawListSerializer,
     ChatRoomSerializer,
     ChatMessageSerializer,
+    NotificationSerializer,
+    LawDomainSerializer,
+    LawCategorySerializer,
+    LawSerializer,
+    LawSectionSerializer,
+    LawSectionDetailSerializer,
 )
 from legal_backend.openrouter_client import get_gemini_response   # switched from gemini_client
 
@@ -52,12 +55,42 @@ def _ensure_all_rooms(user):
             ChatRoom.objects.get_or_create(client=user, lawyer=lawyer)
 
 
-class LawInfoViewSet(viewsets.ModelViewSet):
-    queryset = LawInfo.objects.all().order_by('id')
-    serializer_class = LawInfoSerializer
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields = ['title', 'category', 'section_code']
-    ordering_fields = ['title', 'category']
+class LawDomainViewSet(viewsets.ModelViewSet):
+    queryset = LawDomain.objects.prefetch_related('categories').all()
+    serializer_class = LawDomainSerializer
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['domain_name', 'description']
+
+
+class LawCategoryViewSet(viewsets.ModelViewSet):
+    queryset = LawCategory.objects.select_related('domain').all()
+    serializer_class = LawCategorySerializer
+    filter_backends = [filters.SearchFilter, DjangoFilterBackend]
+    search_fields = ['category_name', 'description']
+    filterset_fields = ['domain', 'slug']
+
+
+class LawViewSet(viewsets.ModelViewSet):
+    queryset = Law.objects.select_related('category').all()
+    serializer_class = LawSerializer
+    filter_backends = [filters.SearchFilter, DjangoFilterBackend]
+    search_fields = ['law_title', 'short_title', 'summary']
+    filterset_fields = ['category']
+
+
+class LawSectionViewSet(viewsets.ModelViewSet):
+    queryset = LawSection.objects.select_related('detail').all()
+    serializer_class = LawSectionSerializer
+    filter_backends = [filters.SearchFilter, DjangoFilterBackend]
+    search_fields = ['section_number', 'section_title', 'chapter']
+    filterset_fields = ['law']
+
+
+class LawSectionDetailViewSet(viewsets.ModelViewSet):
+    queryset = LawSectionDetail.objects.select_related('section').all()
+    serializer_class = LawSectionDetailSerializer
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['simplified_explanation', 'offence_description']
 
 
 class ClientViewSet(viewsets.ModelViewSet):
@@ -78,6 +111,9 @@ class ClientViewSet(viewsets.ModelViewSet):
         user = self.request.user if self.request.user.is_authenticated else None
         if not user:
             return qs.none()
+        # Admin / staff can see all clients
+        if getattr(user, 'is_staff', False):
+            return qs
         # Ensure the authenticated user's Client profile is linked
         existing = qs.filter(user=user).first()
         if not existing:
@@ -213,19 +249,6 @@ def upload_lawyer_photo(request, lawyer_id):
     return Response(serializer.data)
 
 
-class LawDetailViewSet(viewsets.ModelViewSet):
-    queryset = LawDetail.objects.all().order_by('title')
-    serializer_class = LawDetailSerializer
-    filter_backends = [filters.SearchFilter, DjangoFilterBackend]
-    search_fields = ['title', 'statute_name', 'section_reference', 'category']
-    filterset_fields = ['category']
-class LawListViewSet(viewsets.ModelViewSet):
-    queryset = LawList.objects.all().prefetch_related('items').order_by('title')
-    serializer_class = LawListSerializer
-    filter_backends = [filters.SearchFilter, DjangoFilterBackend]
-    search_fields = ['title', 'description', 'category']
-    filterset_fields = ['category']
-
 
 class ComplaintViewSet(viewsets.ModelViewSet):
     queryset = Complaint.objects.all().select_related('user', 'assigned_lawyer').order_by('-created_at')
@@ -233,6 +256,16 @@ class ComplaintViewSet(viewsets.ModelViewSet):
     filter_backends = [filters.SearchFilter, DjangoFilterBackend]
     search_fields = ['title', 'complainant_name', 'respondent_name', 'complaint_type']
     filterset_fields = ['complaint_type', 'status']
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        user = self.request.user if self.request.user.is_authenticated else None
+        if not user:
+            return qs.none()
+        if getattr(user, 'is_staff', False):
+            return qs
+        return qs.filter(user=user)
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
@@ -258,7 +291,7 @@ class ComplaintDraftViewSet(viewsets.ModelViewSet):
 
 
 class AppointmentViewSet(viewsets.ModelViewSet):
-    queryset = Appointment.objects.all().select_related('user').order_by('-appointment_date', '-appointment_time')
+    queryset = Appointment.objects.all().select_related('user', 'lawyer', 'lawyer__user').order_by('-appointment_date', '-appointment_time')
     serializer_class = AppointmentSerializer
     filter_backends = [filters.SearchFilter, DjangoFilterBackend]
     search_fields = ['name', 'email', 'case_type', 'lawyer_type', 'status']
@@ -268,12 +301,89 @@ class AppointmentViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         qs = super().get_queryset()
         user = self.request.user if self.request.user.is_authenticated else None
-        if user:
-            return qs.filter(user=user)
-        return qs.none()
+        if not user:
+            return qs.none()
+        if getattr(user, 'is_staff', False):
+            return qs
+        # Lawyers see appointments assigned to them
+        if hasattr(user, 'lawyer_profile'):
+            return qs.filter(lawyer=user.lawyer_profile)
+        return qs.filter(user=user)
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        appointment = serializer.save(user=self.request.user)
+        # Notify the assigned lawyer about new appointment
+        if appointment.lawyer and appointment.lawyer.user:
+            Notification.objects.create(
+                user=appointment.lawyer.user,
+                title='New Appointment Request',
+                message=f'{appointment.name} has booked a {appointment.case_type} appointment on {appointment.appointment_date}.',
+                notification_type='appointment',
+                related_id=appointment.id,
+            )
+
+    def perform_update(self, serializer):
+        old_status = serializer.instance.status
+        old_date = serializer.instance.appointment_date
+        appointment = serializer.save()
+        new_status = appointment.status
+        user = self.request.user
+        is_lawyer = hasattr(user, 'lawyer_profile')
+
+        # Lawyer changed status → notify the user
+        if is_lawyer and old_status != new_status:
+            if new_status == 'accepted':
+                Notification.objects.create(
+                    user=appointment.user,
+                    title='Appointment Accepted',
+                    message=f'Your {appointment.case_type} appointment on {appointment.appointment_date} has been accepted by the lawyer.',
+                    notification_type='appointment',
+                    related_id=appointment.id,
+                )
+            elif new_status == 'cancelled':
+                Notification.objects.create(
+                    user=appointment.user,
+                    title='Appointment Cancelled',
+                    message=f'Your {appointment.case_type} appointment on {appointment.appointment_date} has been cancelled by the lawyer.',
+                    notification_type='appointment',
+                    related_id=appointment.id,
+                )
+            elif new_status == 'rescheduled':
+                Notification.objects.create(
+                    user=appointment.user,
+                    title='Appointment Rescheduled',
+                    message=f'Your {appointment.case_type} appointment has been rescheduled to {appointment.appointment_date}.',
+                    notification_type='appointment',
+                    related_id=appointment.id,
+                )
+            elif new_status == 'completed':
+                Notification.objects.create(
+                    user=appointment.user,
+                    title='Appointment Completed',
+                    message=f'Your {appointment.case_type} appointment on {appointment.appointment_date} has been marked as completed.',
+                    notification_type='appointment',
+                    related_id=appointment.id,
+                )
+
+        # User changed status → notify the lawyer
+        if not is_lawyer and appointment.lawyer and appointment.lawyer.user:
+            if old_status != new_status:
+                if new_status == 'cancelled':
+                    Notification.objects.create(
+                        user=appointment.lawyer.user,
+                        title='Appointment Cancelled by Client',
+                        message=f'{appointment.name} has cancelled the {appointment.case_type} appointment on {appointment.appointment_date}.',
+                        notification_type='appointment',
+                        related_id=appointment.id,
+                    )
+                elif new_status == 'rescheduled':
+                    Notification.objects.create(
+                        user=appointment.lawyer.user,
+                        title='Appointment Rescheduled by Client',
+                        message=f'{appointment.name} has rescheduled the {appointment.case_type} appointment to {appointment.appointment_date}.',
+                        notification_type='appointment',
+                        related_id=appointment.id,
+                    )
 
 
 class FeedbackViewSet(viewsets.ModelViewSet):
@@ -313,7 +423,16 @@ class FeedbackViewSet(viewsets.ModelViewSet):
             save_kwargs['name'] = name
         if not serializer.validated_data.get('email'):
             save_kwargs['email'] = email
-        serializer.save(**save_kwargs)
+        feedback = serializer.save(**save_kwargs)
+        # Notify the lawyer when they receive a review
+        if feedback.lawyer and feedback.lawyer.user and feedback.feedback_type == 'lawyer_review':
+            Notification.objects.create(
+                user=feedback.lawyer.user,
+                title='New Review Received',
+                message=f'{feedback.name or "A user"} left a {feedback.rating}-star review for you.',
+                notification_type='feedback',
+                related_id=feedback.id,
+            )
 
 
 class ClientSignupView(APIView):
@@ -346,6 +465,9 @@ class LoginView(APIView):
         if not user:
             return Response({'detail': 'Invalid credentials'}, status=400)
         token, _ = Token.objects.get_or_create(user=user)
+        # Superuser / staff → admin role
+        if user.is_staff or user.is_superuser:
+            return Response({'token': token.key, 'role': 'admin', 'user_id': user.id}, status=200)
         role = 'user'
         if hasattr(user, 'lawyer_profile'):
             role = 'lawyer'
@@ -459,12 +581,9 @@ def generate_complaint_pdf(request):
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def list_case_types(request):
-    # Derive case types from LawDetail choices to drive the dropdown list
-    case_map = dict(LawDetail.CATEGORY_CHOICES)
-    items = [
-        {"key": key, "label": label}
-        for key, label in case_map.items()
-    ]
+    # Derive case types from LawCategory entries
+    categories = LawCategory.objects.values_list('slug', 'category_name')
+    items = [{"key": slug, "label": name} for slug, name in categories]
     return Response(items)
 
 
@@ -499,6 +618,16 @@ def create_or_get_chat_room(request, lawyer_id):
         lawyer=lawyer,
         defaults={'status': ChatRoom.STATUS_PENDING},
     )
+    # Notify the lawyer about the new chat request
+    if created and lawyer.user:
+        client_name = actor.client_profile.cname if hasattr(actor, 'client_profile') else actor.username
+        Notification.objects.create(
+            user=lawyer.user,
+            title='New Chat Request',
+            message=f'{client_name} has sent you a chat request.',
+            notification_type='chat',
+            related_id=room.id,
+        )
     serializer = ChatRoomSerializer(room)
     return Response(serializer.data, status=201 if created else 200)
 
@@ -527,6 +656,15 @@ def accept_chat_request(request, room_id):
 
     room.status = ChatRoom.STATUS_ACTIVE
     room.save(update_fields=['status', 'updated_at'])
+    # Notify the client that their chat was accepted
+    lawyer_name = user.lawyer_profile.lname if hasattr(user, 'lawyer_profile') else user.username
+    Notification.objects.create(
+        user=room.client,
+        title='Chat Request Accepted',
+        message=f'{lawyer_name} has accepted your chat request.',
+        notification_type='chat',
+        related_id=room.id,
+    )
     return Response(ChatRoomSerializer(room).data)
 
 
@@ -627,7 +765,152 @@ def delete_chat_room(request, room_id):
     if room.client != user and lawyer_user != user:
         return Response({"error": "Unauthorized"}, status=403)
 
+    # Notify the other party before deleting
+    lawyer_user_obj = getattr(room.lawyer, 'user', None)
+    if user == room.client and lawyer_user_obj:
+        # Client deleted → notify lawyer
+        client_name = user.client_profile.cname if hasattr(user, 'client_profile') else user.username
+        Notification.objects.create(
+            user=lawyer_user_obj,
+            title='Chat Deleted by Client',
+            message=f'{client_name} has deleted the chat room.',
+            notification_type='chat',
+            related_id=room.id,
+        )
+    elif lawyer_user_obj == user and room.client:
+        # Lawyer deleted → notify client
+        lawyer_name = user.lawyer_profile.lname if hasattr(user, 'lawyer_profile') else user.username
+        Notification.objects.create(
+            user=room.client,
+            title='Chat Deleted by Lawyer',
+            message=f'{lawyer_name} has deleted the chat room.',
+            notification_type='chat',
+            related_id=room.id,
+        )
+
     room.delete()
     return Response({"detail": "Chat deleted"}, status=200)
 
 
+# ──────────────────────────────────────────
+# NOTIFICATION VIEWS
+# ──────────────────────────────────────────
+
+class NotificationViewSet(viewsets.ModelViewSet):
+    """Notifications for the authenticated user."""
+    queryset = Notification.objects.all().order_by('-created_at')
+    serializer_class = NotificationSerializer
+    filter_backends = [filters.SearchFilter, DjangoFilterBackend]
+    search_fields = ['title', 'message']
+    filterset_fields = ['notification_type', 'is_read']
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        if not user.is_authenticated:
+            return Notification.objects.none()
+        if getattr(user, 'is_staff', False):
+            return Notification.objects.all().order_by('-created_at')
+        return Notification.objects.filter(user=user).order_by('-created_at')
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def mark_notification_read(request, notif_id):
+    """Mark a single notification as read."""
+    try:
+        notif = Notification.objects.get(id=notif_id, user=request.user)
+    except Notification.DoesNotExist:
+        return Response({"error": "Not found"}, status=404)
+    notif.is_read = True
+    notif.save(update_fields=['is_read'])
+    return Response({"detail": "Marked as read"})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def mark_all_notifications_read(request):
+    """Mark all notifications as read for the authenticated user."""
+    count = Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)
+    return Response({"detail": f"Marked {count} notifications as read"})
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def notification_stats(request):
+    """Get notification counts."""
+    qs = Notification.objects.filter(user=request.user)
+    return Response({
+        "total": qs.count(),
+        "unread": qs.filter(is_read=False).count(),
+    })
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def broadcast_notification(request):
+    """
+    Admin broadcasts a notification to all users (or by role).
+    POST body: { "title": "...", "message": "...", "role": "all"|"client"|"lawyer" }
+    """
+    if not request.user.is_staff:
+        return Response({"error": "Admin only"}, status=403)
+
+    title = request.data.get('title', '').strip()
+    message = request.data.get('message', '').strip()
+    role = request.data.get('role', 'all')  # all, client, lawyer
+
+    if not title or not message:
+        return Response({"error": "Title and message are required"}, status=400)
+
+    users = User.objects.filter(is_active=True)
+    if role == 'client':
+        users = users.filter(client_profile__isnull=False)
+    elif role == 'lawyer':
+        users = users.filter(lawyer_profile__isnull=False)
+    else:
+        # exclude staff from broadcasts (they send them)
+        users = users.exclude(is_staff=True)
+
+    notifications = [
+        Notification(
+            user=u,
+            title=title,
+            message=message,
+            notification_type='system',
+        )
+        for u in users
+    ]
+    Notification.objects.bulk_create(notifications)
+    return Response({"detail": f"Broadcast sent to {len(notifications)} users"})
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def unread_feedback_count(request):
+    """Return count of unread feedback for a lawyer (feedback received since last check)."""
+    user = request.user
+    if not hasattr(user, 'lawyer_profile'):
+        return Response({"unread": 0})
+    # Count feedback that is newer than the lawyer's last profile update
+    # Simple approach: count feedback created in last 7 days that hasn't been 'seen'
+    from django.utils import timezone
+    from datetime import timedelta
+    last_seen = request.query_params.get('since', None)
+    if last_seen:
+        try:
+            from django.utils.dateparse import parse_datetime
+            dt = parse_datetime(last_seen)
+            if dt:
+                count = Feedback.objects.filter(lawyer=user.lawyer_profile, created_at__gt=dt).count()
+                return Response({"unread": count})
+        except Exception:
+            pass
+    count = Feedback.objects.filter(
+        lawyer=user.lawyer_profile,
+        created_at__gte=timezone.now() - timedelta(days=7)
+    ).count()
+    return Response({"unread": count})

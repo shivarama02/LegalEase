@@ -498,7 +498,7 @@ export default function UserAppointmentSchedule() {
                   {/* Notes */}
                   <div className="md:col-span-2">
                     <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
-                      <FileText size={12} /> Notes
+                      <FileText size={12} /> Reason
                       <span className="text-slate-400 font-normal normal-case tracking-normal">(optional)</span>
                     </label>
                     <textarea

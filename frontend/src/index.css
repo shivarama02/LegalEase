@@ -1,6 +1,15 @@
 /* Tailwind CDN provides base, components, and utilities at runtime. */
 /* Custom utility classes maintained here (no @tailwind or @layer). */
 
+/* ── Mobile top-bar content offset ── */
+/* On mobile (<768px) the fixed 56px top navbar overlaps page content.
+   This pushes the flex-1 content div down automatically on all sidebar pages. */
+@media (max-width: 767px) {
+  .min-h-screen.flex > .flex-1 {
+    padding-top: 4.5rem !important; /* 72px: 56px navbar + 16px gap */
+  }
+}
+
 /* ── Scroll fade-in animation ── */
 .fade-section {
   opacity: 0;

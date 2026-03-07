@@ -1,86 +1,76 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Scale, Users, UserCog, FileText, MessageSquare, Bell, BarChart3, LogOut, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Scale, Users, UserCog, MessageSquare, BarChart3, LogOut, Menu, X } from 'lucide-react';
 
 export default function AdminSidebar() {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const baseBtn = 'w-full flex items-center space-x-3 px-4 py-3 text-left rounded-lg transition-colors';
-  const getClass = ({ isActive }) => (isActive ? `${baseBtn} bg-indigo-600 text-white` : `${baseBtn} hover:bg-gray-800 text-gray-100`);
+
+  const baseBtn = 'w-full flex items-center gap-3 px-4 py-3 text-left rounded-xl transition-all duration-200';
+  const getClass = ({ isActive }) =>
+    isActive
+      ? `${baseBtn} bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-500/25`
+      : `${baseBtn} text-slate-300 hover:bg-white/10 hover:text-white`;
 
   function handleLogout() {
-    try {
-      sessionStorage.removeItem('authToken');
-      sessionStorage.removeItem('role');
-      sessionStorage.removeItem('authUserId');
-      navigate('/login');
-    } catch (e) {
-      navigate('/login');
-    }
+    sessionStorage.removeItem('authToken');
+    sessionStorage.removeItem('role');
+    sessionStorage.removeItem('authUserId');
+    navigate('/login');
   }
+
+  const links = [
+    { to: '/admin/Dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { to: '/admin/law-info-management', icon: Scale, label: 'Law Info' },
+    { to: '/admin/user-management', icon: Users, label: 'Users' },
+    { to: '/admin/lawyer-management', icon: UserCog, label: 'Lawyers' },
+    { to: '/admin/feedback-management', icon: MessageSquare, label: 'Feedback' },
+    // { to: '/admin/reports', icon: BarChart3, label: 'Reports' },
+  ];
 
   return (
     <>
-      {/* Mobile toggle */}
-      <button type="button" aria-label="Open menu" className="md:hidden fixed top-4 left-4 z-50 p-2 rounded-md bg-gray-900/90 text-gray-100 shadow-lg" onClick={() => setOpen(true)}>
-        <Menu className="h-5 w-5" />
+      <button type="button" aria-label="Open menu"
+        className="md:hidden fixed top-4 left-4 z-50 p-2.5 rounded-xl bg-slate-900/90 text-white shadow-lg backdrop-blur"
+        onClick={() => setOpen(true)}>
+        <Menu size={18} />
       </button>
-      {open && <div className="md:hidden fixed inset-0 bg-black/40 backdrop-blur-[1px] z-40" onClick={() => setOpen(false)} />}
+      {open && <div className="md:hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-40" onClick={() => setOpen(false)} />}
 
-      <div className={`fixed md:static inset-y-0 left-0 z-50 w-64 bg-gray-900 text-gray-100 shadow-lg transform transition-transform duration-300 ease-in-out ${open ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
-        <div className="p-6 flex flex-col h-full min-h-screen">
+      <div className={`fixed md:sticky md:top-0 inset-y-0 left-0 z-50 w-64 h-screen bg-slate-900 shadow-xl transform transition-transform duration-300 ${open ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
+        <div className="flex flex-col h-full p-5">
+          {/* Brand */}
           <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center space-x-2">
-              <LayoutDashboard className="h-8 w-8 text-indigo-400" />
-              <h1 className="text-xl font-bold">Admin</h1>
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center">
+                <LayoutDashboard size={18} className="text-white" />
+              </div>
+              <div>
+                <h1 className="text-lg font-bold text-white leading-tight">LegalEase</h1>
+                <p className="text-[10px] font-semibold text-indigo-400 uppercase tracking-widest">Admin Panel</p>
+              </div>
             </div>
-            <button type="button" aria-label="Close menu" className="md:hidden p-2 rounded-md hover:bg-gray-800 text-gray-300" onClick={() => setOpen(false)}>
-              <X className="h-5 w-5" />
+            <button type="button" aria-label="Close" className="md:hidden p-1.5 rounded-lg hover:bg-white/10 text-slate-400" onClick={() => setOpen(false)}>
+              <X size={16} />
             </button>
           </div>
 
-          <nav className="space-y-2 flex-1">
-            <NavLink to="/admin/Dashboard" className={getClass} end>
-              <LayoutDashboard className="h-5 w-5" />
-              <span>Dashboard</span>
-            </NavLink>
-            <NavLink to="/admin/law-info-management" className={getClass}>
-              <Scale className="h-5 w-5" />
-              <span>Law Info Management</span>
-            </NavLink>
-            <NavLink to="/admin/lawyer-management" className={getClass}>
-              <UserCog className="h-5 w-5" />
-              <span>Lawyer Management</span>
-            </NavLink>
-            <NavLink to="/admin/user-management" className={getClass}>
-              <Users className="h-5 w-5" />
-              <span>User Management</span>
-            </NavLink>
-            <NavLink to="/admin/complaint-templates" className={getClass}>
-              <FileText className="h-5 w-5" />
-              <span>Complaint Templates</span>
-            </NavLink>
-            <NavLink to="/admin/reports" className={getClass}>
-              <BarChart3 className="h-5 w-5" />
-              <span>Reports</span>
-            </NavLink>
-            <NavLink to="/admin/feedback-management" className={getClass}>
-              <MessageSquare className="h-5 w-5" />
-              <span>Feedback</span>
-            </NavLink>
-            <NavLink to="/admin/notification-management" className={getClass}>
-              <Bell className="h-5 w-5" />
-              <span>Notifications</span>
-            </NavLink>
-            {/* <NavLink to="/admin/settings" className={getClass}>
-              <Settings className="h-5 w-5" />
-              <span>Settings</span>
-            </NavLink> */}
-            <button onClick={handleLogout} className={`${baseBtn} hover:bg-gray-800 text-gray-100 w-full text-left`} type="button">
-              <LogOut className="h-5 w-5" />
-              <span>Logout</span>
-            </button>
+          {/* Nav */}
+          <nav className="flex-1 space-y-1.5">
+            {links.map(l => (
+              <NavLink key={l.to} to={l.to} className={getClass} onClick={() => setOpen(false)}>
+                <l.icon size={18} /> <span className="text-sm font-medium">{l.label}</span>
+              </NavLink>
+            ))}
           </nav>
+
+          {/* Logout */}
+          <div className="pt-4 border-t border-white/10">
+            <button onClick={handleLogout} type="button"
+              className={`${baseBtn} text-slate-400 hover:bg-red-500/10 hover:text-red-400`}>
+              <LogOut size={18} /> <span className="text-sm font-medium">Logout</span>
+            </button>
+          </div>
         </div>
       </div>
     </>

@@ -142,7 +142,7 @@ export default function Login() {
                   </div>
                   <div>
                     <label className="block mb-1.5 text-xs font-medium text-slate-600">Lawyer ID</label>
-                    <input name="lawyerId" type="text" required className={inputCls} placeholder="e.g. LWR-12345" />
+                    <input name="lawyerId" type="text" className={inputCls} placeholder="e.g. LWR-12345" />
                   </div>
                   <div>
                     <label className="block mb-1.5 text-xs font-medium text-slate-600">Password</label>
@@ -157,11 +157,11 @@ export default function Login() {
               )}
 
               <div className="flex items-center justify-between text-sm">
-                <label className="inline-flex items-center gap-2 select-none text-slate-600">
+                {/* <label className="inline-flex items-center gap-2 select-none text-slate-600">
                   <input type="checkbox" name="remember" className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-200" />
                   Remember me
-                </label>
-                <Link to="/forgot-password" className="text-indigo-600 hover:text-indigo-700 font-medium text-xs">Forgot password?</Link>
+                </label> */}
+                {/* <Link to="/forgot-password" className="text-indigo-600 hover:text-indigo-700 font-medium text-xs">Forgot password?</Link> */}
               </div>
 
               <button

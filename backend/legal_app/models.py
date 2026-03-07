@@ -1,19 +1,87 @@
 from django.db import models
 from django.contrib.auth.models import User
 
-# Create your models here.
-class LawInfo(models.Model):
-    title = models.CharField(max_length=200)
-    category = models.CharField(max_length=100)
-    section_code = models.CharField(max_length=50, blank=True)
-    short_description = models.TextField()
-    detailed_description = models.TextField()
-    source_url = models.URLField(blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)  # added
-    updated_at = models.DateTimeField(auto_now=True)      # added
+# ──────────────────────────────────────────
+# LAW MODULE – Five-level hierarchy
+# ──────────────────────────────────────────
+
+class LawDomain(models.Model):
+    domain_name = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    display_order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['display_order', 'domain_name']
 
     def __str__(self):
-        return self.title  # ensure return
+        return self.domain_name
+
+
+class LawCategory(models.Model):
+    domain = models.ForeignKey(LawDomain, related_name='categories', on_delete=models.CASCADE)
+    category_name = models.CharField(max_length=200)
+    slug = models.SlugField(unique=True)
+    description = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['category_name']
+
+    def __str__(self):
+        return self.category_name
+
+
+class Law(models.Model):
+    category = models.ForeignKey(LawCategory, related_name='laws', on_delete=models.CASCADE)
+    law_title = models.CharField(max_length=300)
+    short_title = models.CharField(max_length=200, blank=True)
+    enactment_year = models.PositiveIntegerField(blank=True, null=True)
+    law_type = models.CharField(max_length=100, blank=True)
+    authority = models.CharField(max_length=200, blank=True)
+    summary = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['law_title']
+
+    def __str__(self):
+        return self.law_title
+
+
+class LawSection(models.Model):
+    law = models.ForeignKey(Law, related_name='sections', on_delete=models.CASCADE)
+    section_number = models.CharField(max_length=50)
+    section_title = models.CharField(max_length=300)
+    chapter = models.CharField(max_length=200, blank=True)
+    section_text = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['section_number']
+
+    def __str__(self):
+        return f"Section {self.section_number} – {self.section_title}"
+
+
+class LawSectionDetail(models.Model):
+    section = models.OneToOneField(LawSection, related_name='detail', on_delete=models.CASCADE)
+    simplified_explanation = models.TextField(blank=True)
+    offence_description = models.TextField(blank=True)
+    imprisonment_term = models.CharField(max_length=300, blank=True)
+    fine_amount = models.CharField(max_length=300, blank=True)
+    compensation = models.TextField(blank=True)
+    bailable_status = models.CharField(max_length=50, blank=True)
+    cognizable_status = models.CharField(max_length=50, blank=True)
+    example_scenario = models.TextField(blank=True)
+    last_updated = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Details for {self.section}"
 
 class Client(models.Model):
     user = models.OneToOneField(User, related_name='client_profile',
@@ -57,60 +125,6 @@ class Lawyer(models.Model):
     def __str__(self):
         return f"{self.lname} ({self.specialization})"
 
-# New model for detailed law reference entries (separate from LawInfo summary cards)
-class LawDetail(models.Model):
-    CATEGORY_CHOICES = [
-        ("consumer", "Consumer Protection"),
-        ("ipc", "Criminal / IPC"),
-        ("labour", "Labour / Employment"),
-        ("family", "Family / Domestic"),
-        ("cyber", "Cyber Crime"),
-        ("property", "Property / Tenancy"),
-        ("corporate", "Corporate / Company"),
-        ("civil", "Civil Law"),
-    ]
-    title = models.CharField(max_length=255)
-    category = models.CharField(max_length=30, choices=CATEGORY_CHOICES)
-    statute_name = models.CharField(max_length=255, blank=True)
-    section_reference = models.CharField(max_length=100, blank=True)
-    summary = models.TextField(help_text="Short structured summary")
-    full_text = models.TextField(blank=True)
-    penalties = models.TextField(blank=True, help_text="Penalties/punishments applicable, free text")
-    related_sections = models.CharField(max_length=300, blank=True, help_text="Comma separated section codes")
-    tags = models.CharField(max_length=300, blank=True, help_text="Comma separated tags")
-    source_url = models.URLField(blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        ordering = ['category', 'title']
-
-    def __str__(self):
-        return f"{self.title} - {self.category}"
-
-
-class LawList(models.Model):
-    """A curated or category-based list of laws.
-
-    This model lets you group multiple LawDetail records under a single list
-    (e.g., "Criminal Law" list), optionally tying it to a category key that
-    matches LawDetail.CATEGORY_CHOICES.
-    """
-    title = models.CharField(max_length=200)
-    slug = models.SlugField(unique=True)
-    description = models.TextField(blank=True)
-    # Optional: tie to a category key from LawDetail
-    category = models.CharField(max_length=30, blank=True)
-    items = models.ManyToManyField('LawDetail', related_name='law_lists', blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        ordering = ['title']
-
-    def __str__(self):
-        return self.title
-
 # Complaint model capturing user-submitted complaints
 class Complaint(models.Model):
     STATUS_CHOICES = [
@@ -149,7 +163,7 @@ class Complaint(models.Model):
     # Meta / system
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
     assigned_lawyer = models.ForeignKey(Lawyer, related_name='assigned_complaints', on_delete=models.SET_NULL, blank=True, null=True)
-    law_references = models.ManyToManyField(LawDetail, blank=True, related_name='complaints')
+    law_references = models.ManyToManyField(LawSection, blank=True, related_name='complaints')
     # Optional JSON for flexible structured data (e.g., dynamic fields)
     extra_data = models.JSONField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -201,6 +215,8 @@ class ComplaintDraft(models.Model):
 class Appointment(models.Model):
     STATUS_CHOICES = [
         ("scheduled", "Scheduled"),
+        ("accepted", "Accepted"),
+        ("rescheduled", "Rescheduled"),
         ("completed", "Completed"),
         ("cancelled", "Cancelled"),
     ]
@@ -323,3 +339,32 @@ class ChatMessage(models.Model):
 
     def __str__(self):
         return f"Msg {self.id} in Room {self.room_id} by {self.sender.username}"
+
+
+# ──────────────────────────────────────────
+# NOTIFICATION SYSTEM
+# ──────────────────────────────────────────
+
+class Notification(models.Model):
+    NOTIF_TYPES = [
+        ('appointment', 'Appointment'),
+        ('feedback', 'Feedback'),
+        ('chat', 'Chat'),
+        ('system', 'System'),
+        ('verification', 'Verification'),
+        ('reminder', 'Reminder'),
+    ]
+
+    user = models.ForeignKey(User, related_name='notifications', on_delete=models.CASCADE)
+    title = models.CharField(max_length=255)
+    message = models.TextField()
+    notification_type = models.CharField(max_length=20, choices=NOTIF_TYPES, default='system')
+    is_read = models.BooleanField(default=False)
+    related_id = models.PositiveIntegerField(null=True, blank=True, help_text="Optional ID of related object")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"[{self.notification_type}] {self.title} → {self.user.username}"

@@ -6,6 +6,26 @@ import {
   Languages, IndianRupee, Star, ShieldCheck, Pencil, X, Save, Loader2,
 } from 'lucide-react';
 
+/* ─── ProfileField (outside component to prevent remount on state change) ── */
+function ProfileField({ label, type = 'text', isEditing, displayValue, value, onEdit, ...rest }) {
+  return (
+    <div className="flex-1">
+      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">{label}</label>
+      {!isEditing ? (
+        <p className="text-sm font-medium text-slate-800">{displayValue || '—'}</p>
+      ) : (
+        <input
+          type={type}
+          className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 transition"
+          value={value ?? ''}
+          onChange={e => onEdit(e.target.value)}
+          {...rest}
+        />
+      )}
+    </div>
+  );
+}
+
 export default function LawyerProfile() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -135,26 +155,15 @@ export default function LawyerProfile() {
     </div>
   );
 
-  /* ─── Field helper ─────────────────────────────────────────────────── */
-  const Field = ({ label, field, type = 'text', ...rest }) => (
-    <div className="flex-1">
-      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">{label}</label>
-      {!isEditing ? (
-        <p className="text-sm font-medium text-slate-800">{
-          field === 'charge' ? (lawyer?.[field] ? `₹${Number(lawyer[field]).toLocaleString('en-IN')}` : '—')
-            : (lawyer?.[field] || '—')
-        }</p>
-      ) : (
-        <input
-          type={type}
-          className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 transition"
-          value={editData[field]}
-          onChange={e => setEditData(d => ({ ...d, [field]: e.target.value }))}
-          {...rest}
-        />
-      )}
-    </div>
-  );
+  /* helper to bind a field for ProfileField */
+  const f = (field) => ({
+    isEditing,
+    displayValue: field === 'charge'
+      ? (lawyer?.[field] ? `₹${Number(lawyer[field]).toLocaleString('en-IN')}` : '—')
+      : (lawyer?.[field] || '—'),
+    value: editData[field],
+    onEdit: v => setEditData(d => ({ ...d, [field]: v })),
+  });
 
   /* ─── Render ───────────────────────────────────────────────────────── */
   return (
@@ -235,17 +244,19 @@ export default function LawyerProfile() {
                         </div>
                       )}
                     </div>
-                    {/* Upload overlay */}
-                    <button
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={uploading}
-                      className="absolute inset-0 rounded-3xl bg-black/0 group-hover:bg-black/40 flex items-center justify-center transition-all cursor-pointer"
-                    >
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center text-white">
-                        {uploading ? <Loader2 size={22} className="animate-spin" /> : <Camera size={22} />}
-                        <span className="text-[10px] font-semibold mt-1">{uploading ? 'Uploading…' : 'Change Photo'}</span>
-                      </div>
-                    </button>
+                    {/* Upload overlay — only in edit mode */}
+                    {isEditing && (
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploading}
+                        className="absolute inset-0 rounded-3xl bg-black/40 flex items-center justify-center cursor-pointer"
+                      >
+                        <div className="flex flex-col items-center text-white">
+                          {uploading ? <Loader2 size={22} className="animate-spin" /> : <Camera size={22} />}
+                          <span className="text-[10px] font-semibold mt-1">{uploading ? 'Uploading…' : 'Change Photo'}</span>
+                        </div>
+                      </button>
+                    )}
                     <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
                   </div>
                 </div>
@@ -302,24 +313,24 @@ export default function LawyerProfile() {
                 {/* ── Contact Grid ────────────────────────────────────── */}
                 <div className="mb-6">
                   <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4">Contact Information</h2>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5 text-left">
                     <div className="flex items-start gap-3">
                       <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0 mt-0.5">
                         <Mail size={15} className="text-indigo-500" />
                       </div>
-                      <Field label="Email" field="email" type="email" />
+                      <ProfileField label="Email" type="email" {...f('email')} />
                     </div>
                     <div className="flex items-start gap-3">
                       <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0 mt-0.5">
                         <Phone size={15} className="text-indigo-500" />
                       </div>
-                      <Field label="Phone" field="phone" />
+                      <ProfileField label="Phone" {...f('phone')} />
                     </div>
                     <div className="flex items-start gap-3">
                       <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0 mt-0.5">
                         <MapPin size={15} className="text-indigo-500" />
                       </div>
-                      <Field label="Location" field="location" />
+                      <ProfileField label="Location" {...f('location')} />
                     </div>
                   </div>
                 </div>
@@ -329,36 +340,36 @@ export default function LawyerProfile() {
                 {/* ── Professional Info Grid ──────────────────────────── */}
                 <div>
                   <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4">Professional Details</h2>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5 text-left">
                     <div className="flex items-start gap-3">
                       <div className="w-9 h-9 rounded-xl bg-violet-50 flex items-center justify-center flex-shrink-0 mt-0.5">
                         <UserIcon size={15} className="text-violet-500" />
                       </div>
-                      <Field label="Full Name" field="lname" />
+                      <ProfileField label="Full Name" {...f('lname')} />
                     </div>
                     <div className="flex items-start gap-3">
                       <div className="w-9 h-9 rounded-xl bg-violet-50 flex items-center justify-center flex-shrink-0 mt-0.5">
                         <Briefcase size={15} className="text-violet-500" />
                       </div>
-                      <Field label="Specialization" field="specialization" />
+                      <ProfileField label="Specialization" {...f('specialization')} />
                     </div>
                     <div className="flex items-start gap-3">
                       <div className="w-9 h-9 rounded-xl bg-violet-50 flex items-center justify-center flex-shrink-0 mt-0.5">
                         <Briefcase size={15} className="text-violet-500" />
                       </div>
-                      <Field label="Experience (years)" field="experience_years" type="number" min="0" />
+                      <ProfileField label="Experience (years)" type="number" min="0" {...f('experience_years')} />
                     </div>
                     <div className="flex items-start gap-3">
                       <div className="w-9 h-9 rounded-xl bg-violet-50 flex items-center justify-center flex-shrink-0 mt-0.5">
                         <Languages size={15} className="text-violet-500" />
                       </div>
-                      <Field label="Languages" field="languages" placeholder="Comma separated" />
+                      <ProfileField label="Languages" placeholder="Comma separated" {...f('languages')} />
                     </div>
                     <div className="flex items-start gap-3">
                       <div className="w-9 h-9 rounded-xl bg-violet-50 flex items-center justify-center flex-shrink-0 mt-0.5">
                         <IndianRupee size={15} className="text-violet-500" />
                       </div>
-                      <Field label="Consultation Charge (₹)" field="charge" type="number" min="0" step="0.01" />
+                      <ProfileField label="Consultation Charge (₹)" type="number" min="0" step="0.01" {...f('charge')} />
                     </div>
                   </div>
                 </div>

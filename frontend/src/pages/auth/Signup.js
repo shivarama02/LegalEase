@@ -118,16 +118,16 @@ export default function Signup() {
                 <>
                   <div>
                     <label className="block mb-1.5 text-xs font-medium text-slate-600">Full Name</label>
-                    <input name="fullName" type="text" required className={inputCls} placeholder="John Doe" />
+                    <input name="fullName" type="text" required className={inputCls} placeholder="Your full name" />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block mb-1.5 text-xs font-medium text-slate-600">Email</label>
-                      <input name="email" type="email" required className={inputCls} placeholder="you@example.com" />
+                      <input name="email" type="email" required className={inputCls} placeholder="you@gmail.com" />
                     </div>
                     <div>
                       <label className="block mb-1.5 text-xs font-medium text-slate-600">Phone</label>
-                      <input name="phone" type="text" required className={inputCls} placeholder="XXXXXXXXXX" />
+                      <input name="phone" type="text" required className={inputCls} placeholder="XXXXX XXXXX" />
                     </div>
                   </div>
                   <div>
