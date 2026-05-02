@@ -1,3 +1,5 @@
+import { WS_BASE } from '../api';
+
 /**
  * connectChatSocket
  * Opens a WebSocket connection to the chat room.
@@ -10,6 +12,6 @@
 export function connectChatSocket(roomId) {
   const token = sessionStorage.getItem("authToken");
   const query = token ? `?token=${encodeURIComponent(token)}` : "";
-  const url = `ws://127.0.0.1:8000/ws/chat/${roomId}/${query}`;
+  const url = `${WS_BASE}/ws/chat/${roomId}/${query}`;
   return new WebSocket(url);
 }

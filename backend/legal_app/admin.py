@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Client, Lawyer, Feedback, LawDomain, LawCategory, Law, LawSection, LawSectionDetail
+from .models import Client, Lawyer, Feedback, LawDomain, LawCategory, Law, LawSection, LawSectionDetail, EmailOTP, PreVerifiedLawyer
 
 @admin.register(LawDomain)
 class LawDomainAdmin(admin.ModelAdmin):
@@ -47,5 +47,19 @@ class FeedbackAdmin(admin.ModelAdmin):
     list_display = ('feedback_type', 'rating', 'name', 'email', 'lawyer', 'created_at')
     list_filter = ('feedback_type', 'rating', 'created_at')
     search_fields = ('name', 'email', 'subject', 'message')
+
+
+@admin.register(PreVerifiedLawyer)
+class PreVerifiedLawyerAdmin(admin.ModelAdmin):
+    list_display = ('lawyer_id', 'is_registered', 'created_at', 'updated_at')
+    list_filter = ('is_registered',)
+    search_fields = ('lawyer_id',)
+
+
+@admin.register(EmailOTP)
+class EmailOTPAdmin(admin.ModelAdmin):
+    list_display = ('email', 'otp_code', 'is_verified', 'used_for_signup', 'created_at', 'expires_at')
+    list_filter = ('is_verified', 'used_for_signup')
+    search_fields = ('email',)
 
 

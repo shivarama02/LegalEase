@@ -3,7 +3,8 @@ from django.contrib.auth.hashers import make_password, check_password
 from rest_framework import serializers
 from rest_framework.authtoken.models import Token
 from django.db.models import Avg
-from .models import Client, Lawyer, Complaint, ComplaintDraft, Appointment, Feedback, ChatRoom, ChatMessage, Notification, LawDomain, LawCategory, Law, LawSection, LawSectionDetail
+from django.db import transaction
+from .models import Client, Lawyer, Complaint, ComplaintDraft, Appointment, Feedback, ChatRoom, ChatMessage, Notification, LawDomain, LawCategory, Law, LawSection, LawSectionDetail, EmailOTP, PreVerifiedLawyer
 
 
 # ──────────────────────────────────────────
@@ -134,16 +135,32 @@ class ClientSignupSerializer(serializers.ModelSerializer):
         model = Client
         fields = ['cname', 'email', 'phone', 'username', 'password']
 
+    def validate_email(self, value):
+        otp = EmailOTP.objects.filter(email=value).first()
+        if not otp:
+            raise serializers.ValidationError('OTP not requested for this email')
+        if otp.is_expired:
+            raise serializers.ValidationError('OTP expired. Please request a new OTP')
+        if not otp.is_verified:
+            raise serializers.ValidationError('Email OTP not verified')
+        if otp.used_for_signup:
+            raise serializers.ValidationError('OTP already used for signup')
+        return value
+
     def create(self, validated_data):
         pwd = validated_data.pop('password')
-        user = User.objects.create_user(
-            username=validated_data['username'],
-            email=validated_data['email'],
-            password=pwd
-        )
-        client = Client.objects.create(user=user, **validated_data)
-        Token.objects.get_or_create(user=user)
-        return client
+        with transaction.atomic():
+            user = User.objects.create_user(
+                username=validated_data['username'],
+                email=validated_data['email'],
+                password=pwd
+            )
+            client = Client.objects.create(user=user, **validated_data)
+            otp = EmailOTP.objects.select_for_update().get(email=validated_data['email'])
+            otp.used_for_signup = True
+            otp.save(update_fields=['used_for_signup'])
+            Token.objects.get_or_create(user=user)
+            return client
 
 
 class LawyerSignupSerializer(serializers.ModelSerializer):
@@ -154,16 +171,54 @@ class LawyerSignupSerializer(serializers.ModelSerializer):
         fields = ['lname', 'email', 'phone', 'specialization', 'experience_years',
                   'location', 'charge', 'username', 'lawyer_id', 'password']
 
+    def validate_email(self, value):
+        otp = EmailOTP.objects.filter(email=value).first()
+        if not otp:
+            raise serializers.ValidationError('OTP not requested for this email')
+        if otp.is_expired:
+            raise serializers.ValidationError('OTP expired. Please request a new OTP')
+        if not otp.is_verified:
+            raise serializers.ValidationError('Email OTP not verified')
+        if otp.used_for_signup:
+            raise serializers.ValidationError('OTP already used for signup')
+        return value
+
+    def validate_lawyer_id(self, value):
+        pre_verified = PreVerifiedLawyer.objects.filter(lawyer_id=value).first()
+        if not pre_verified:
+            raise serializers.ValidationError('Invalid lawyer_id. Contact admin for pre-verification')
+        if pre_verified.is_registered:
+            raise serializers.ValidationError('This lawyer_id is already registered')
+        return value
+
     def create(self, validated_data):
         pwd = validated_data.pop('password')
-        user = User.objects.create_user(
-            username=validated_data['username'],
-            email=validated_data['email'],
-            password=pwd
-        )
-        lawyer = Lawyer.objects.create(user=user, **validated_data)
-        Token.objects.get_or_create(user=user)
-        return lawyer
+        lawyer_id = validated_data['lawyer_id']
+        with transaction.atomic():
+            pre_verified = PreVerifiedLawyer.objects.select_for_update().get(lawyer_id=lawyer_id)
+            if pre_verified.is_registered:
+                raise serializers.ValidationError({'lawyer_id': 'This lawyer_id is already registered'})
+
+            user = User.objects.create_user(
+                username=validated_data['username'],
+                email=validated_data['email'],
+                password=pwd
+            )
+            lawyer = Lawyer.objects.create(
+                user=user,
+                pre_verified_lawyer=pre_verified,
+                **validated_data,
+            )
+
+            otp = EmailOTP.objects.select_for_update().get(email=validated_data['email'])
+            otp.used_for_signup = True
+            otp.save(update_fields=['used_for_signup'])
+
+            pre_verified.is_registered = True
+            pre_verified.save(update_fields=['is_registered'])
+
+            Token.objects.get_or_create(user=user)
+            return lawyer
 
 
 class LoginSerializer(serializers.Serializer):

@@ -1,1 +1,0 @@
-// Lawyer Home page (placeholder)

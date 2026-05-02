@@ -205,29 +205,29 @@ export default function ComplaintGenerator() {
 
               {/* Complainant */}
               <div className="p-6 border-b border-slate-100">
-                <div className="flex items-center gap-2 mb-4">
+                <div className="flex items-center gap-2 mb-4 flex-wrap justify-center">
                   <User size={16} className="text-indigo-500" />
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Complainant Information</p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block mb-1.5 text-xs font-medium text-slate-600">Full Name *</label>
+                    <label className="block mb-1.5 ml-2 text-xs font-medium text-slate-600 text-left">Full Name *</label>
                     <input type="text" className={inputCls('complainant_name')} placeholder="Enter your full name" value={form.complainant_name} onChange={update('complainant_name')} />
                     {errors.complainant_name && <p className="mt-1 text-xs text-red-500 flex items-center gap-1"><AlertCircle size={12} /> {errors.complainant_name}</p>}
                   </div>
                   <div>
-                    <label className="block mb-1.5 text-xs font-medium text-slate-600">Phone Number</label>
+                    <label className="block mb-1.5 ml-2 text-xs font-medium text-slate-600 text-left">Phone Number</label>
                     <input type="text" className={inputCls('complainant_phone')} placeholder="Enter phone number" value={form.complainant_phone} onChange={update('complainant_phone')} />
                     {errors.complainant_phone && <p className="mt-1 text-xs text-red-500 flex items-center gap-1"><AlertCircle size={12} /> {errors.complainant_phone}</p>}
                   </div>
                 </div>
                 <div className="mt-4">
-                  <label className="block mb-1.5 text-xs font-medium text-slate-600">Email Address</label>
+                  <label className="block mb-1.5 ml-2 text-xs font-medium text-slate-600 text-left">Email Address</label>
                   <input type="email" className={inputCls('complainant_email')} placeholder="Enter email address" value={form.complainant_email} onChange={update('complainant_email')} />
                     {errors.complainant_email && <p className="mt-1 text-xs text-red-500 flex items-center gap-1"><AlertCircle size={12} /> {errors.complainant_email}</p>}
                 </div>
                 <div className="mt-4">
-                  <label className="block mb-1.5 text-xs font-medium text-slate-600">Address</label>
+                  <label className="block mb-1.5 ml-2 text-xs font-medium text-slate-600 text-left">Address</label>
                   <textarea rows={2} className={inputCls('complainant_address')} placeholder="Enter complete address" value={form.complainant_address} onChange={update('complainant_address')} />
                     {errors.complainant_address && <p className="mt-1 text-xs text-red-500 flex items-center gap-1"><AlertCircle size={12} /> {errors.complainant_address}</p>}
                 </div>
@@ -235,17 +235,17 @@ export default function ComplaintGenerator() {
 
               {/* Respondent */}
               <div className="p-6 border-b border-slate-100">
-                <div className="flex items-center gap-2 mb-4">
+                <div className="flex items-center gap-2 mb-4 flex-wrap justify-center">
                   <User size={16} className="text-violet-500" />
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Respondent Information</p>
                 </div>
                 <div>
-                  <label className="block mb-1.5 text-xs font-medium text-slate-600">Name / Company *</label>
+                  <label className="block mb-1.5 ml-2 text-xs font-medium text-slate-600 text-left">Name / Company *</label>
                   <input type="text" className={inputCls('respondent_name')} placeholder="Name of person/company" value={form.respondent_name} onChange={update('respondent_name')} />
                   {errors.respondent_name && <p className="mt-1 text-xs text-red-500 flex items-center gap-1"><AlertCircle size={12} /> {errors.respondent_name}</p>}
                 </div>
                 <div className="mt-4">
-                  <label className="block mb-1.5 text-xs font-medium text-slate-600">Address</label>
+                  <label className="block mb-1.5 ml-2 text-xs font-medium text-slate-600 text-left">Address</label>
                   <textarea rows={2} className={inputCls('respondent_address')} placeholder="Respondent's address" value={form.respondent_address} onChange={update('respondent_address')} />
                     {errors.respondent_address && <p className="mt-1 text-xs text-red-500 flex items-center gap-1"><AlertCircle size={12} /> {errors.respondent_address}</p>}
                 </div>
@@ -253,13 +253,13 @@ export default function ComplaintGenerator() {
 
               {/* Incident */}
               <div className="p-6 border-b border-slate-100">
-                <div className="flex items-center gap-2 mb-4">
+                <div className="flex items-center gap-2 mb-4 flex-wrap justify-center">
                   <MapPin size={16} className="text-amber-500" />
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Incident Details</p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block mb-1.5 text-xs font-medium text-slate-600">Date of Incident</label>
+                    <label className="block mb-1.5 ml-2 text-xs font-medium text-slate-600 text-left">Date of Incident</label>
                     <div className="relative">
                       <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                       <input type="date" className={`${inputCls('incident_date')} pl-9`} value={form.incident_date} onChange={update('incident_date')} />
@@ -267,7 +267,7 @@ export default function ComplaintGenerator() {
                     </div>
                   </div>
                   <div>
-                    <label className="block mb-1.5 text-xs font-medium text-slate-600">Location</label>
+                    <label className="block mb-1.5 ml-2 text-xs font-medium text-slate-600 text-left">Location</label>
                     <div className="relative">
                       <MapPin size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                       <input type="text" className={`${inputCls('incident_location')} pl-9`} placeholder="Where did it occur?" value={form.incident_location} onChange={update('incident_location')} />
@@ -276,7 +276,7 @@ export default function ComplaintGenerator() {
                   </div>
                 </div>
                 <div className="mt-4">
-                  <label className="block mb-1.5 text-xs font-medium text-slate-600">Detailed Description *</label>
+                  <label className="block mb-1.5 ml-2 text-xs font-medium text-slate-600 text-left">Detailed Description *</label>
                   <textarea rows={5} className={inputCls('description')} placeholder="Provide a detailed description of the incident..." value={form.description} onChange={update('description')} />
                   {errors.description && <p className="mt-1 text-xs text-red-500 flex items-center gap-1"><AlertCircle size={12} /> {errors.description}</p>}
                 </div>
@@ -284,12 +284,12 @@ export default function ComplaintGenerator() {
 
               {/* Additional */}
               <div className="p-6 border-b border-slate-100">
-                <div className="flex items-center gap-2 mb-4">
+                <div className="flex items-center gap-2 mb-4 flex-wrap justify-center">
                   <FileText size={16} className="text-emerald-500" />
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Additional Information</p>
                 </div>
                 <div>
-                  <label className="block mb-1.5 text-xs font-medium text-slate-600">Damages / Loss Amount</label>
+                  <label className="block mb-1.5 ml-2 text-xs font-medium text-slate-600 text-left">Damages / Loss Amount</label>
                   <div className="relative">
                     {/* <IndianRupee size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" /> */}
                     <input type="text" className={`${inputCls('damages_amount')} pl-3`} placeholder="Enter monetary damages" value={form.damages_amount} onChange={update('damages_amount')} />
@@ -297,12 +297,12 @@ export default function ComplaintGenerator() {
                   </div>
                 </div>
                 <div className="mt-4">
-                  <label className="block mb-1.5 text-xs font-medium text-slate-600">Evidences Available</label>
+                  <label className="block mb-1.5 ml-2 text-xs font-medium text-slate-600 text-left">Evidences Available</label>
                   <textarea rows={3} className={inputCls('evidence_summary')} placeholder="Describe any evidence (documents, screenshots, etc.)" value={form.evidence_summary} onChange={update('evidence_summary')} />
                     {errors.evidence_summary && <p className="mt-1 text-xs text-red-500 flex items-center gap-1"><AlertCircle size={12} /> {errors.evidence_summary}</p>}
                 </div>
                 <div className="mt-4">
-                  <label className="block mb-1.5 text-xs font-medium text-slate-600">Relief Sought</label>
+                  <label className="block mb-1.5 ml-2 text-xs font-medium text-slate-600 text-left">Relief Sought</label>
                   <textarea rows={3} className={inputCls('relief_sought')} placeholder="What outcome do you seek?" value={form.relief_sought} onChange={update('relief_sought')} />
                     {errors.relief_sought && <p className="mt-1 text-xs text-red-500 flex items-center gap-1"><AlertCircle size={12} /> {errors.relief_sought}</p>}
                 </div>

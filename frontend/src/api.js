@@ -3,7 +3,9 @@
 // Example .env entry:
 // REACT_APP_API_BASE=http://127.0.0.1:8000/api
 
-export const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000/api';
+const HOST = process.env.REACT_APP_API_HOST || '192.168.0.104';
+export const API_BASE = process.env.REACT_APP_API_BASE || `http://localhost:8000/api`;
+export const WS_BASE = `ws://localhost:8000`;
 
 export function apiUrl(path) {
   // Accept paths with or without leading slash

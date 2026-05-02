@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.utils import timezone
 
 # ──────────────────────────────────────────
 # LAW MODULE – Five-level hierarchy
@@ -83,6 +84,39 @@ class LawSectionDetail(models.Model):
     def __str__(self):
         return f"Details for {self.section}"
 
+
+class EmailOTP(models.Model):
+    email = models.EmailField(unique=True)
+    otp_code = models.CharField(max_length=6)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    is_verified = models.BooleanField(default=False)
+    verified_at = models.DateTimeField(null=True, blank=True)
+    used_for_signup = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"OTP<{self.email}> verified={self.is_verified}"
+
+    @property
+    def is_expired(self):
+        return timezone.now() > self.expires_at
+
+
+class PreVerifiedLawyer(models.Model):
+    lawyer_id = models.CharField(max_length=30, unique=True)
+    is_registered = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['lawyer_id']
+
+    def __str__(self):
+        return f"{self.lawyer_id} (registered={self.is_registered})"
+
 class Client(models.Model):
     user = models.OneToOneField(User, related_name='client_profile',
                                 on_delete=models.CASCADE, null=True, blank=True)  # new
@@ -102,6 +136,13 @@ class Client(models.Model):
 class Lawyer(models.Model):
     user = models.OneToOneField(User, related_name='lawyer_profile',
                                 on_delete=models.CASCADE, null=True, blank=True)  # new
+    pre_verified_lawyer = models.OneToOneField(
+        PreVerifiedLawyer,
+        related_name='registered_lawyer',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+    )
     lname = models.CharField(max_length=150)
     email = models.EmailField(unique=True)
     phone = models.CharField(max_length=15, unique=True)

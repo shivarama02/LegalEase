@@ -1,71 +1,38 @@
 import 'package:flutter/material.dart';
-
-import 'auth/login_page.dart';
-import 'auth/signup_page.dart';
-
-class AppRoutes {
-	static const String home = '/';
-	static const String login = '/login';
-	static const String signup = '/signup';
-	static const String userHome = '/user';
-	static const String lawyerHome = '/lawyer';
-	static const String adminHome = '/admin';
-}
+import 'landing_page.dart';
+// import your other pages
+import 'auth/login.dart';
+import 'auth/signup.dart';
 
 class AppRouter {
-	static Route<dynamic> onGenerateRoute(RouteSettings settings) {
-		switch (settings.name) {
-			case AppRoutes.home:
-				return _page(const _PlaceholderScreen(title: 'Home'));
-			case AppRoutes.login:
-				return _page(const LoginPage());
-			case AppRoutes.signup:
-				return _page(const SignUpPage());
-			case AppRoutes.userHome:
-				return _page(const _PlaceholderScreen(title: 'User Home'));
-			case AppRoutes.lawyerHome:
-				return _page(const _PlaceholderScreen(title: 'Lawyer Home'));
-			case AppRoutes.adminHome:
-				return _page(const _PlaceholderScreen(title: 'Admin Home'));
-			default:
-				return _page(UnknownRoutePage(requested: settings.name));
-		}
-	}
 
-	static MaterialPageRoute<dynamic> _page(Widget child) =>
-			MaterialPageRoute(builder: (_) => child);
-}
+  static Route<dynamic> onGenerateRoute(RouteSettings settings) {
 
-class UnknownRoutePage extends StatelessWidget {
-	const UnknownRoutePage({super.key, this.requested});
-	final String? requested;
-	@override
-	Widget build(BuildContext context) {
-		return Scaffold(
-			appBar: AppBar(title: const Text('Unknown route')),
-			body: Center(
-				child: Text(
-					'No route found for: ${requested ?? 'N/A'}',
-					style: const TextStyle(fontSize: 16),
-				),
-			),
-		);
-	}
-}
+    switch (settings.name) {
 
-class _PlaceholderScreen extends StatelessWidget {
-	const _PlaceholderScreen({required this.title});
-	final String title;
-	@override
-	Widget build(BuildContext context) {
-		return Scaffold(
-			appBar: AppBar(title: Text(title)),
-			body: Center(
-				child: Text(
-					'$title screen coming soon',
-					style: const TextStyle(fontSize: 18),
-				),
-			),
-		);
-	}
+      case '/':
+        return MaterialPageRoute(
+          builder: (_) => const LandingPage(),
+        );
+
+      case '/login':
+        return MaterialPageRoute(
+          builder: (_) => const LoginPage(),
+        );
+
+      case '/signup':
+        return MaterialPageRoute(
+          builder: (_) => const SignupPage(),
+        );
+
+      default:
+        return MaterialPageRoute(
+          builder: (_) => Scaffold(
+            body: Center(
+              child: Text("No route defined for ${settings.name}"),
+            ),
+          ),
+        );
+    }
+  }
 }

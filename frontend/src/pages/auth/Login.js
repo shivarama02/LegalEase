@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import { Scale, User, Briefcase, Eye, EyeOff } from 'lucide-react';
+import { API_BASE } from '../../api';
 
 const ROLES = ['User', 'Lawyer'];
 
@@ -35,13 +36,14 @@ export default function Login() {
     }
 
     try {
-      const res = await fetch('http://localhost:8000/api/auth/login/', {
+      const res = await fetch(`${API_BASE}/auth/login/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.detail || 'Login failed');
+      
       if (json.token) sessionStorage.setItem('authToken', json.token);
       if (json.role) sessionStorage.setItem('role', json.role);
       if (json.user_id != null) sessionStorage.setItem('authUserId', String(json.user_id));

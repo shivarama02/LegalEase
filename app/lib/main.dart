@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'user_app/pages/user_home.dart';
+import 'app_router.dart';
 
 void main() {
   runApp(const LegalEaseApp());
@@ -12,17 +12,23 @@ class LegalEaseApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+
+      title: "LegalEase",
+
       theme: ThemeData(
-        brightness: Brightness.dark,
+        brightness: Brightness.light,
         useMaterial3: true,
-        scaffoldBackgroundColor: const Color(0xFF0E1116),
+        scaffoldBackgroundColor: const Color(0xFFF8FAFC),
+
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF1E88E5),
-          brightness: Brightness.dark,
+          seedColor: const Color(0xFF4F46E5),
+          brightness: Brightness.light,
         ),
       ),
-      home: const UserHomePage(),
+
+      initialRoute: '/', // ✅ Landing page loads first
+
+      onGenerateRoute: AppRouter.onGenerateRoute,
     );
   }
 }
-// HomePage and _ActionCard moved to user_app/pages/user_home.dart

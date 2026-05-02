@@ -30,8 +30,8 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-#(-pp0p*izxid**i5q_
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',') if os.getenv('ALLOWED_HOSTS') else []
-
+# ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',') if os.getenv('ALLOWED_HOSTS') else ['localhost', '127.0.0.1', '192.168.0.104']
+ALLOWED_HOSTS = ["*"]
 
 # Application definition
 
@@ -152,6 +152,15 @@ REST_FRAMEWORK = {
 
 # CORS (development permissive)
 CORS_ALLOW_ALL_ORIGINS = True
+
+
+EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
+EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'shivaramaputtu@gmail.com')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', 'twsdztkkkdijxoon')
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True').lower() == 'true'
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'no-reply@legalease.local')
 
 
 CHANNEL_LAYERS = {

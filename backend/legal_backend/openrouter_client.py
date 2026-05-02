@@ -5,7 +5,7 @@ Uses the plain `requests` library (no extra SDK needed).
 Set the OPENROUTER_API_KEY environment variable before starting Django.
 
 Optional env vars:
-  OPENROUTER_MODEL       – model slug  (default: google/gemma-3-12b-it:free)
+  OPENROUTER_MODEL       – model slug  (default: stepfun/step-3.5-flash:free)
   OPENROUTER_SITE_URL    – your site URL sent in HTTP-Referer header
   OPENROUTER_SITE_NAME   – your site name sent in X-OpenRouter-Title header
 """
@@ -96,8 +96,11 @@ def get_gemini_response(user_query: str) -> str:
             "content": query
         }
     ],
-    "max_tokens": 1000,
-    "temperature": 0.3
+    "max_tokens": 300,
+    "temperature": 0.3,
+    "provider": {
+        "allow_fallbacks": False   # 🚨 prevents switching to paid models
+    }
 }
 
     last_status = None

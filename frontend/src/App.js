@@ -5,6 +5,7 @@ import Contact from './pages/Contact';
 import LandingPage from './pages/LandingPage';
 import Login from './pages/auth/Login';
 import Signup from './pages/auth/Signup';
+import OtpVerify from './pages/auth/OtpVerify';
 import UserDashboard from './pages/user/Dashboard';
 import LawyerDashboard from './pages/lawyer/Dashboard';
 import LawyerLawInfo from './pages/lawyer/LawInfo';
@@ -57,6 +58,7 @@ function App() {
             <Route path="/contact" element={<Contact />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
+            <Route path="/verify-otp" element={<OtpVerify />} />
             <Route path="/user/Dashboard" element={<UserDashboard />} />
             <Route path="/user/laws" element={<LawInfo />} />
             <Route path="/laws" element={<PublicLawInfo />} />

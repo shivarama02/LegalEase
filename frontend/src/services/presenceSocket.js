@@ -1,3 +1,5 @@
+import { WS_BASE } from '../api';
+
 /**
  * connectPresenceSocket
  *
@@ -10,7 +12,7 @@
 export function connectPresenceSocket(onPresence) {
   const token = sessionStorage.getItem("authToken");
   const query = token ? `?token=${encodeURIComponent(token)}` : "";
-  const ws = new WebSocket(`ws://127.0.0.1:8000/ws/presence/${query}`);
+  const ws = new WebSocket(`${WS_BASE}/ws/presence/${query}`);
 
   ws.onmessage = (event) => {
     try {

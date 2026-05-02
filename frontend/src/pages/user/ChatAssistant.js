@@ -148,7 +148,7 @@ export default function ChatAssistant() {
                   )}
                   <div className={`max-w-[75%] ${m.role === 'user'
                     ? 'bg-gradient-to-br from-violet-600 to-indigo-600 text-white rounded-2xl rounded-tr-md px-4 py-3 shadow-md shadow-violet-200'
-                    : `bg-white border ${m.error ? 'border-red-200' : 'border-slate-200'} text-slate-700 rounded-2xl rounded-tl-md px-4 py-3 shadow-sm`
+                    : `bg-white border ${m.error ? 'border-red-200' : 'border-slate-200'} text-slate-700 rounded-2xl rounded-tl-md px-4 py-3 shadow-sm text-left`
                   }`}>
                     {m.pending ? (
                       <div className="flex items-center gap-2 py-1">

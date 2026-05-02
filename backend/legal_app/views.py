@@ -3,16 +3,21 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
 from django.contrib.auth.models import User
+from django.conf import settings
+from django.core.mail import send_mail
 from django_filters.rest_framework import DjangoFilterBackend
 import django_filters
 from django.contrib.auth import authenticate
+from django.utils import timezone
+from datetime import timedelta
+import random
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse
 from io import BytesIO
 
-from .models import Client, Lawyer, Complaint, ComplaintDraft, Appointment, Feedback, ChatRoom, ChatMessage, Notification, LawDomain, LawCategory, Law, LawSection, LawSectionDetail
+from .models import Client, Lawyer, Complaint, ComplaintDraft, Appointment, Feedback, ChatRoom, ChatMessage, Notification, LawDomain, LawCategory, Law, LawSection, LawSectionDetail, EmailOTP, PreVerifiedLawyer
 from .serializers import (
     ClientSerializer,
     LawyerSerializer,
@@ -443,6 +448,86 @@ class ClientSignupView(APIView):
             token = Token.objects.get(user=client.user)
             return Response({'id': client.id, 'token': token.key}, status=201)
         return Response(ser.errors, status=400)
+
+
+class SendOTPView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        email = (request.data.get('email') or '').strip().lower()
+        if not email:
+            return Response({'detail': 'Email is required'}, status=400)
+
+        otp_code = f"{random.randint(0, 999999):06d}"
+        expires_at = timezone.now() + timedelta(minutes=2)
+
+        EmailOTP.objects.update_or_create(
+            email=email,
+            defaults={
+                'otp_code': otp_code,
+                'expires_at': expires_at,
+                'is_verified': False,
+                'verified_at': None,
+                'used_for_signup': False,
+            },
+        )
+
+        try:
+            send_mail(
+                subject='LegalEase OTP Verification',
+                message=f'Your OTP is {otp_code}. It is valid for 2 minutes.',
+                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'no-reply@legalease.local'),
+                recipient_list=[email],
+                fail_silently=False,
+            )
+        except Exception as exc:
+            return Response({'detail': 'Failed to send OTP', 'error': str(exc)}, status=500)
+
+        return Response({'detail': 'OTP sent successfully', 'expires_in_seconds': 120}, status=200)
+
+
+class VerifyOTPView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        email = (request.data.get('email') or '').strip().lower()
+        otp_code = (request.data.get('otp') or '').strip()
+
+        if not email or not otp_code:
+            return Response({'detail': 'Email and OTP are required'}, status=400)
+
+        otp = EmailOTP.objects.filter(email=email).first()
+        if not otp:
+            return Response({'detail': 'OTP not requested for this email'}, status=404)
+
+        if otp.is_expired:
+            return Response({'detail': 'OTP expired. Please request a new OTP'}, status=400)
+
+        if otp.otp_code != otp_code:
+            return Response({'detail': 'Invalid OTP'}, status=400)
+
+        otp.is_verified = True
+        otp.verified_at = timezone.now()
+        otp.save(update_fields=['is_verified', 'verified_at'])
+
+        return Response({'detail': 'OTP verified successfully'}, status=200)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def check_lawyer_id(request):
+    lawyer_id = (request.data.get('lawyer_id') or '').strip()
+    if not lawyer_id:
+        return Response({'detail': 'lawyer_id is required'}, status=400)
+
+    pre_verified = PreVerifiedLawyer.objects.filter(lawyer_id=lawyer_id).first()
+    if not pre_verified:
+        return Response({'detail': 'Invalid lawyer_id. Contact admin for pre-verification', 'available': False}, status=404)
+
+    if pre_verified.is_registered:
+        return Response({'detail': 'This lawyer_id is already registered', 'available': False}, status=409)
+
+    return Response({'detail': 'lawyer_id is available', 'available': True}, status=200)
 
 
 class LawyerSignupView(APIView):

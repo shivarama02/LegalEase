@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import { Scale, User, Briefcase, Eye, EyeOff } from 'lucide-react';
+import { API_BASE } from '../../api';
 
 const ROLES = ['User', 'Lawyer'];
 
@@ -19,11 +20,9 @@ export default function Signup() {
   async function handleSubmit(e) {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
-    let endpoint = '';
-    let payload = {};
+    let payload = null;
 
     if (role === 'User') {
-      endpoint = 'http://localhost:8000/api/auth/signup/user/';
       payload = {
         cname: form.get('fullName'),
         email: form.get('email'),
@@ -32,7 +31,6 @@ export default function Signup() {
         password: form.get('password'),
       };
     } else if (role === 'Lawyer') {
-      endpoint = 'http://localhost:8000/api/auth/signup/lawyer/';
       payload = {
         lname: form.get('fullName'),
         email: form.get('email'),
@@ -40,25 +38,62 @@ export default function Signup() {
         username: form.get('username'),
         password: form.get('password'),
         lawyer_id: form.get('lawyerId'),
+        specialization: '',
+        experience_years: 0,
+        location: '',
+        charge: 0,
       };
     } else if (role === 'Admin') {
       alert('Admin signup not implemented');
       return;
     }
 
+    const email = String(payload.email || '').trim().toLowerCase();
+    if (!email) {
+      alert('Please enter a valid email');
+      return;
+    }
+
+    if (role === 'Lawyer') {
+      const lawyerId = String(payload.lawyer_id || '').trim();
+      if (!lawyerId) {
+        alert('Please enter a valid Lawyer ID');
+        return;
+      }
+
+      try {
+        const checkRes = await fetch(`${API_BASE}/auth/lawyer-id/check/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ lawyer_id: lawyerId }),
+        });
+        const checkJson = await checkRes.json();
+        if (!checkRes.ok) {
+          const detail = checkJson.detail || 'Lawyer ID check failed';
+          alert(detail);
+          return;
+        }
+      } catch (err) {
+        alert('Lawyer ID check failed: ' + err.message);
+        return;
+      }
+    }
+
     try {
-      const res = await fetch(endpoint, {
+      const res = await fetch(`${API_BASE}/auth/otp/send/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ email }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(JSON.stringify(json));
-      sessionStorage.setItem('justSignedUpRole', role.toLowerCase());
-      navigate('/login');
+      if (!res.ok) throw new Error(json.detail || 'Failed to send OTP');
+
+      sessionStorage.setItem('pendingSignupRole', role.toLowerCase());
+      sessionStorage.setItem('pendingSignupPayload', JSON.stringify(payload));
+      sessionStorage.setItem('pendingOtpSent', 'true');
+      navigate('/verify-otp');
     } catch (err) {
-      console.error(err);
-      alert('Signup failed: ' + err.message);
+      alert('OTP send failed: ' + err.message);
     }
   }
 
@@ -123,7 +158,13 @@ export default function Signup() {
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block mb-1.5 text-xs font-medium text-slate-600">Email</label>
-                      <input name="email" type="email" required className={inputCls} placeholder="you@gmail.com" />
+                      <input
+                        name="email"
+                        type="email"
+                        required
+                        className={inputCls}
+                        placeholder="you@gmail.com"
+                      />
                     </div>
                     <div>
                       <label className="block mb-1.5 text-xs font-medium text-slate-600">Phone</label>
@@ -155,7 +196,13 @@ export default function Signup() {
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block mb-1.5 text-xs font-medium text-slate-600">Email</label>
-                      <input name="email" type="email" required className={inputCls} placeholder="lawyer@example.com" />
+                      <input
+                        name="email"
+                        type="email"
+                        required
+                        className={inputCls}
+                        placeholder="lawyer@example.com"
+                      />
                     </div>
                     <div>
                       <label className="block mb-1.5 text-xs font-medium text-slate-600">Phone</label>
@@ -188,7 +235,7 @@ export default function Signup() {
                 type="submit"
                 className="w-full py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 shadow-sm transition"
               >
-                Sign up as {role}
+                Submit as {role}
               </button>
 
               <p className="text-center text-sm text-slate-500">

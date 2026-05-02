@@ -33,7 +33,7 @@ const FEATURES = [
 const STATS = [
   { value: '500+', label: 'Laws Covered' },
   { value: '200+', label: 'Verified Lawyers' },
-  { value: '1 000+', label: 'Complaints Filed' },
+  { value: '1000+', label: 'Complaints Filed' },
   { value: '24/7', label: 'AI Assistant' },
 ];
 
