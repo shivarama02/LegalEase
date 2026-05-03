@@ -593,36 +593,47 @@ def generate_complaint_pdf(request):
         return str(data.get(key, '') or '')
 
     current_date = gv('current_date') or ''
+    incident_time = gv('incident_time')
+    incident_time_part = f" at {incident_time}" if incident_time else ""
+    subject = gv('subject') or f"Complaint regarding incident at {gv('incident_location')}"
+    accused_line = (
+        f"The accused person involved is {gv('respondent_name')}."
+        if gv('respondent_name')
+        else "The accused person is currently unknown."
+    )
+    evidence_block = (
+        f"I have the following evidence:\n{gv('evidence_summary')}"
+        if gv('evidence_summary')
+        else ""
+    )
+
     # Build letter text (mirror frontend logic)
     letter = (
-        f"COMPLAINT LETTER\n\nDate: {current_date}\n\n"
-        f"To,\nThe Consumer Forum / Appropriate Authority\n{gv('respondent_address')}\n\n"
-        f"Subject: {gv('complaint_type')} - Complaint against {gv('respondent_name')}\n\n"
+        f"From,\n"
+        f"{gv('complainant_name')}\n"
+        f"{gv('complainant_address')}\n"
+        f"Phone: {gv('complainant_phone')}\n"
+        f"Email: {gv('complainant_email')}\n\n"
+        f"Date: {current_date}\n\n"
+        f"To,\n"
+        f"The Station House Officer,\n"
+        f"{gv('police_station') or '________ Police Station'},\n"
+        f"Kerala\n\n"
+        f"Subject: {subject}\n\n"
         f"Respected Sir/Madam,\n\n"
-        f"I, {gv('complainant_name')}, resident of {gv('complainant_address')}, hereby file this complaint against {gv('respondent_name')}, located at {gv('respondent_address')}.\n\n"
-        f"DETAILS OF THE COMPLAINT:\n\n"
-        f"1. Type of Complaint: {gv('complaint_type')}\n\n"
-        f"2. Date of Incident: {gv('incident_date')}\n\n"
-        f"3. Location of Incident: {gv('incident_location')}\n\n"
-        f"4. Detailed Description of the Incident:\n{gv('description')}\n\n"
-        f"5. Financial Loss/Damages: {gv('damages_amount')}\n\n"
-        f"6. Evidence Available:\n{gv('evidence_summary')}\n\n"
-        f"7. Relief Sought:\n{gv('relief_sought')}\n\n"
-        f"PRAYER:\n\n"
-        f"In view of the above facts and circumstances, I humbly request this honorable forum to:\n"
-        f"- Take appropriate action against the respondent\n"
-        f"- Direct the respondent to provide the relief sought\n"
-        f"- Award compensation for the mental agony and harassment caused\n"
-        f"- Any other relief deemed fit and proper\n\n"
+        f"I, {gv('complainant_name')}, residing at {gv('complainant_address')}, would like to bring to your kind attention the following matter.\n\n"
+        f"On {gv('incident_date')}{incident_time_part}, at {gv('incident_location')}, the following incident occurred:\n\n"
+        f"{gv('description')}\n\n"
+        f"{accused_line}\n\n"
+        f"{evidence_block}\n\n"
+        f"I request you to kindly register my complaint and take necessary legal action at the earliest.\n\n"
+        f"I am willing to cooperate fully with the investigation.\n\n"
         f"Thanking you,\n\n"
-        f"Yours faithfully,\n{gv('complainant_name')}\n"
-        f"Contact: {gv('complainant_phone')}\n"
-        f"Email: {gv('complainant_email')}\n\n---\n\n"
-        f"VERIFICATION:\n\n"
-        f"I, {gv('complainant_name')}, do hereby verify that the contents of the above complaint are true and correct to the best of my knowledge.\n\n"
-        f"Date: {current_date}\n"
-        f"Place: {gv('incident_location')}\n\n"
-        f"Signature: ________________\n{gv('complainant_name')}"
+        f"Yours faithfully,\n\n"
+        f"{gv('complainant_name')}\n\n"
+        f"Place: {gv('incident_location')}\n"
+        f"Date: {current_date}\n\n"
+        f"Signature: ________________\n"
     )
 
     buffer = BytesIO()

@@ -13,7 +13,7 @@ export default function ComplaintPreview() {
   const [data, setData] = useState(location.state?.complaint || {});
   const [loading, setLoading] = useState((!!draftId || !!complaintId) && !location.state?.complaint);
   const [saving, setSaving] = useState(false);
-  const currentDate = useMemo(() => new Date().toLocaleDateString(), []);
+  const currentDate = useMemo(() => new Date().toLocaleDateString('en-GB'), []);
   const [existingId, setExistingId] = useState(complaintId || location.state?.complaint?.id || null);
 
   useEffect(() => {
@@ -55,7 +55,7 @@ export default function ComplaintPreview() {
     return COMPLAINT_TYPE_MAP[key]?.title || data.complaint_type || '';
   }, [data?.complaint_type]);
 
-  const letter = `COMPLAINT LETTER\n\nDate: ${currentDate}\n\nTo,\nThe Consumer Forum / Appropriate Authority\n${data.respondent_address || ''}\n\nSubject: ${displayType} - Complaint against ${data.respondent_name || ''}\n\nRespected Sir/Madam,\n\nI, ${data.complainant_name || ''}, resident of ${data.complainant_address || ''}, hereby file this complaint against ${data.respondent_name || ''}, located at ${data.respondent_address || ''}.\n\nDETAILS OF THE COMPLAINT:\n\n1. Type of Complaint: ${displayType}\n\n2. Date of Incident: ${data.incident_date || ''}\n\n3. Location of Incident: ${data.incident_location || ''}\n\n4. Detailed Description of the Incident:\n${data.description || ''}\n\n5. Financial Loss/Damages: ${data.damages_amount || ''}\n\n6. Evidence Available:\n${data.evidence_summary || ''}\n\n7. Relief Sought:\n${data.relief_sought || ''}\n\nPRAYER:\n\nIn view of the above facts and circumstances, I humbly request this honorable forum to:\n- Take appropriate action against the respondent\n- Direct the respondent to provide the relief sought\n- Award compensation for the mental agony and harassment caused\n- Any other relief deemed fit and proper\n\nThanking you,\n\nYours faithfully,\n${data.complainant_name || ''}\nContact: ${data.complainant_phone || ''}\nEmail: ${data.complainant_email || ''}\n\n---\n\nVERIFICATION:\n\nI, ${data.complainant_name || ''}, do hereby verify that the contents of the above complaint are true and correct to the best of my knowledge.\n\nDate: ${currentDate}\nPlace: ${data.incident_location || ''}\n\nSignature: ________________\n${data.complainant_name || ''}`;
+  const letter = `From,\n${data.complainant_name || ''}\n${data.complainant_address || ''}\nPhone: ${data.complainant_phone || ''}\nEmail: ${data.complainant_email || ''}\n\nDate: ${currentDate}\n\nTo,\nThe Station House Officer(SHO),\n${data.police_station || '________ Police Station'},\nKerala\n\nSubject: ${data.subject || `Complaint regarding incident at ${data.incident_location || ''}`}\n\nRespected Sir/Madam,\n\nI, ${data.complainant_name || ''}, residing at ${data.complainant_address || ''}, would like to bring to your kind attention the following matter.\n\nOn ${data.incident_date || ''}${data.incident_time ? ` at ${data.incident_time}` : ''}, at ${data.incident_location || ''}, the following incident occurred:\n\n${data.description || ''}\n\n${data.respondent_name ? `The accused person involved is ${data.respondent_name}.` : 'The accused person is currently unknown.'}\n\n${data.evidence_summary ? `I have the following evidence:\n${data.evidence_summary}` : ''}\n\nI request you to kindly register my complaint and take necessary legal action at the earliest.\n\nI am willing to cooperate fully with the investigation.\n\nThanking you,\n\nYours faithfully,\n\n${data.complainant_name || ''}\n\nIncident Place: ${data.incident_location || ''}\nDate: ${currentDate}\n\nSignature: ________________\n`;
 
   const handleEdit = () => navigate('/user/complaints/generator', { state: { complaint: { ...data, id: existingId } } });
 
@@ -88,8 +88,10 @@ export default function ComplaintPreview() {
       complaint_type: normalizedType,
       title: data.title || (data.complaint_type ? `${data.complaint_type} Complaint` : 'Complaint'),
       complainant_name: data.complainant_name, complainant_phone: data.complainant_phone, complainant_email: data.complainant_email,
-      complainant_address: data.complainant_address, respondent_name: data.respondent_name, respondent_address: data.respondent_address,
-      incident_date: data.incident_date, incident_location: data.incident_location, description: data.description,
+      complainant_address: data.complainant_address, complainant_id_proof: data.complainant_id_proof,
+      respondent_name: data.respondent_name, respondent_phone: data.respondent_phone, respondent_address: data.respondent_address,
+      incident_date: data.incident_date, incident_time: data.incident_time, incident_location: data.incident_location, description: data.description,
+      police_station: data.police_station, subject: data.subject,
       damages_amount: data.damages_amount, evidence_summary: data.evidence_summary, relief_sought: data.relief_sought,
     };
     const payload = {};
@@ -182,6 +184,18 @@ export default function ComplaintPreview() {
                   <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Type</span>
                   <p className="font-bold text-indigo-700">{displayType}</p>
                 </div>
+                {data.police_station && (
+                  <div className="border-l border-indigo-200 pl-4">
+                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Police Station</span>
+                    <p className="font-medium text-slate-700">{data.police_station}</p>
+                  </div>
+                )}
+                {data.subject && (
+                  <div className="border-l border-indigo-200 pl-4">
+                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Subject</span>
+                    <p className="font-medium text-slate-700">{data.subject}</p>
+                  </div>
+                )}
                 {data.complainant_name && (
                   <div className="border-l border-indigo-200 pl-4">
                     <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Complainant</span>
@@ -198,6 +212,12 @@ export default function ComplaintPreview() {
                   <div className="border-l border-indigo-200 pl-4">
                     <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Date</span>
                     <p className="font-medium text-slate-700">{data.incident_date}</p>
+                  </div>
+                )}
+                {data.incident_time && (
+                  <div className="border-l border-indigo-200 pl-4">
+                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Time</span>
+                    <p className="font-medium text-slate-700">{data.incident_time}</p>
                   </div>
                 )}
               </div>

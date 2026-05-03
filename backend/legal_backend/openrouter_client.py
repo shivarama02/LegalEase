@@ -5,7 +5,7 @@ Uses the plain `requests` library (no extra SDK needed).
 Set the OPENROUTER_API_KEY environment variable before starting Django.
 
 Optional env vars:
-  OPENROUTER_MODEL       – model slug  (default: stepfun/step-3.5-flash:free)
+  OPENROUTER_MODEL       – model slug  (default: openai/gpt-oss-120b:free)
   OPENROUTER_SITE_URL    – your site URL sent in HTTP-Referer header
   OPENROUTER_SITE_NAME   – your site name sent in X-OpenRouter-Title header
 """
@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 # ── configuration ──────────────────────────────────────────────────────────────
 
 OPENROUTER_API_KEY  = os.getenv("OPENROUTER_API_KEY", "MISSING_API_KEY")
-OPENROUTER_MODEL    = os.getenv("OPENROUTER_MODEL", "stepfun/step-3.5-flash:free")
+OPENROUTER_MODEL    = os.getenv("OPENROUTER_MODEL", "openai/gpt-oss-120b:free")
 SITE_URL            = os.getenv("OPENROUTER_SITE_URL", "")
 SITE_NAME           = os.getenv("OPENROUTER_SITE_NAME", "Legalease")
 
@@ -70,25 +70,37 @@ def get_gemini_response(user_query: str) -> str:
         {
             "role": "system",
             "content": (
-                "You are LegalEase, a professional Indian legal assistant.\n\n"
-                "STRICT RULES:\n"
-                "1. Answer ONLY questions related to Indian law.\n"
-                "2. If the query is not legal in nature, respond with: "
-                "'This assistant only handles Indian legal queries.'\n"
-                "3. Do NOT provide U.S. or foreign law unless explicitly requested.\n"
-                "4. Base answers on Indian statutes such as the Transfer of Property Act, 1882, "
-                "Indian Penal Code, 1860, Code of Civil Procedure, 1908, "
-                "Code of Criminal Procedure, 1973, State Rent Control Acts, "
-                "Model Tenancy Act, 2021, and other applicable Indian laws.\n"
-                "5. If the issue depends on a specific Indian state, ask the user to specify the state.\n"
-                "6. If unsure, clearly state uncertainty instead of guessing.\n"
-                "7. Keep the complete response within 700 tokens.\n"
-                "8. Maintain a professional and structured tone.\n\n"
-                "FORMAT:\n"
+                "You are LegalEase, an assistant specialized in Indian law.\n\n"
+
+                "RULES (STRICT):\n"
+                "1. Answer ONLY Indian legal questions.\n"
+                "2. If NOT legal, reply EXACTLY:\n"
+                "   This assistant only handles Indian legal queries.\n"
+                "3. Do NOT explain foreign law unless explicitly asked.\n"
+                "4. Base answers on Indian laws (IPC 1860, CrPC 1973, CPC 1908, Evidence Act 1872, "
+                "Transfer of Property Act 1882, Model Tenancy Act 2021, and relevant state laws).\n"
+                "5. If state-specific, ask user to specify state BEFORE final answer.\n"
+                "6. If unsure, say:\n"
+                "   I am not fully certain about this. Please consult a legal professional.\n"
+                "   Do NOT guess.\n\n"
+
+                "OUTPUT STYLE:\n"
+                "- Use simple English\n"
+                "- Short sentences\n"
+                "- Explain like to a beginner\n"
+                "- Avoid legal jargon or explain it clearly\n\n"
+
+                "MANDATORY FORMAT:\n"
                 "1. Legal Position under Indian Law\n"
-                "2. Relevant Act / Provision\n"
+                "2. Relevant Act / Section\n"
                 "3. Practical Steps\n"
-                "4. Important Caution\n"
+                "4. Important Caution\n\n"
+
+                "QUALITY RULES:\n"
+                "- Be factually correct\n"
+                "- Do not hallucinate sections or laws\n"
+                "- Prefer general law if exact section unknown\n"
+                "- Keep response within 250–300 tokens\n"
             )
         },
         {
@@ -97,9 +109,12 @@ def get_gemini_response(user_query: str) -> str:
         }
     ],
     "max_tokens": 300,
-    "temperature": 0.3,
+    "temperature": 0.2,   # 🔽 lower = more accurate, less creative
+    "top_p": 0.9,
+    "frequency_penalty": 0.0,
+    "presence_penalty": 0.0,
     "provider": {
-        "allow_fallbacks": False   # 🚨 prevents switching to paid models
+        "allow_fallbacks": False
     }
 }
 

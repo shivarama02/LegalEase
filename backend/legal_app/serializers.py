@@ -269,8 +269,8 @@ class ComplaintSerializer(serializers.ModelSerializer):
     class Meta:
         model = Complaint
         fields = [
-            'id','user','complaint_type','title','complainant_name','complainant_phone','complainant_email','complainant_address',
-            'respondent_name','respondent_address','incident_date','incident_location','description','damages_amount',
+            'id','user','complaint_type','title','complainant_name','complainant_phone','complainant_email','complainant_address','complainant_id_proof',
+            'respondent_name','respondent_phone','respondent_address','incident_date','incident_time','incident_location','police_station','subject','description','damages_amount',
             'evidence_summary','relief_sought','status','assigned_lawyer','law_references','law_reference_ids','extra_data',
             'created_at','updated_at'
         ]
@@ -287,8 +287,8 @@ class ComplaintDraftSerializer(serializers.ModelSerializer):
     class Meta:
         model = ComplaintDraft
         fields = [
-            'id','user','complaint_type','title','complainant_name','complainant_phone','complainant_email','complainant_address',
-            'respondent_name','respondent_address','incident_date','incident_location','description','damages_amount',
+            'id','user','complaint_type','title','complainant_name','complainant_phone','complainant_email','complainant_address','complainant_id_proof',
+            'respondent_name','respondent_phone','respondent_address','incident_date','incident_time','incident_location','police_station','subject','description','damages_amount',
             'evidence_summary','relief_sought','extra_data','created_at','updated_at'
         ]
         read_only_fields = ['user','created_at','updated_at']
@@ -300,6 +300,8 @@ class ComplaintDraftSerializer(serializers.ModelSerializer):
         # Coerce empty strings to None for nullable fields
         if attrs.get('incident_date') in ['', None]:
             attrs['incident_date'] = None
+        if attrs.get('incident_time') in ['', None]:
+            attrs['incident_time'] = None
         dmg = attrs.get('damages_amount')
         if dmg in ['', None]:
             attrs['damages_amount'] = None

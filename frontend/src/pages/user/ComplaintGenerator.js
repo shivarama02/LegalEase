@@ -24,16 +24,22 @@ export default function ComplaintGenerator() {
   };
 
   const incoming = location.state?.complaint || {};
+  const editingComplaintId = incoming?.id || null;
   const [form, setForm] = useState(() => ({
     complaint_type: normalizeTypeToKey(incoming.complaint_type) || (selectedMeta ? selectedMeta.key : ''),
     complainant_name: incoming.complainant_name || '',
     complainant_phone: incoming.complainant_phone || '',
     complainant_email: incoming.complainant_email || '',
     complainant_address: incoming.complainant_address || '',
+    complainant_id_proof: incoming.complainant_id_proof || '',
     respondent_name: incoming.respondent_name || '',
+    respondent_phone: incoming.respondent_phone || '',
     respondent_address: incoming.respondent_address || '',
     incident_date: incoming.incident_date || '',
+    incident_time: incoming.incident_time || '',
     incident_location: incoming.incident_location || '',
+    police_station: incoming.police_station || '',
+    subject: incoming.subject || '',
     description: incoming.description || '',
     damages_amount: incoming.damages_amount || '',
     evidence_summary: incoming.evidence_summary || '',
@@ -50,14 +56,10 @@ export default function ComplaintGenerator() {
     if (!values.complainant_phone || String(values.complainant_phone).trim() ==='') e.complainant_phone = 'Phone number is required.';
     if (!values.complainant_email || String(values.complainant_email).trim() === '') e.complainant_email = 'Email is required.';
     if (!values.complainant_address || String(values.complainant_address).trim() === '') e.complainant_address = 'Address is required.';
-    if (!values.respondent_name || String(values.respondent_name).trim() === '') e.respondent_name = 'Respondent name/company is required.';
-    if (!values.respondent_address || String(values.respondent_address).trim() === '') e.respondent_address = 'Respondent address is required.';
-    if (!values.incident_date || String(values.incident_date).trim() === '') e.incident_date = 'Incident date0 is required.';
+    if (!values.incident_date || String(values.incident_date).trim() === '') e.incident_date = 'Incident date is required.';
     if (!values.incident_location || String(values.incident_location).trim() === '') e.incident_location = 'Incident location is required.';
+    if (!values.police_station || String(values.police_station).trim() === '') e.police_station = 'Police station is required.';
     if (!values.description || String(values.description).trim() === '') e.description = 'Detailed description is required.';
-    if (!values.damages_amount || String(values.damages_amount).trim() === '') e.damages_amount  = 'Please mention your damages';
-    if (!values.evidence_summary || String(values.evidence_summary).trim() === '') e.evidence_summary  = 'The Evidences are Required';
-    if (!values.relief_sought || String(values.relief_sought).trim() === '') e.relief_sought  = 'PLease mention your relief soughts';
     return e;
   };
 
@@ -82,6 +84,9 @@ export default function ComplaintGenerator() {
       if (!payload.complaint_type) throw new Error('Please select a valid complaint type.');
       Object.keys(payload).forEach(k => { if (typeof payload[k] === 'string') payload[k] = payload[k].trim(); });
       payload.incident_date = payload.incident_date || null;
+      payload.incident_time = payload.incident_time || null;
+      payload.respondent_phone = payload.respondent_phone || '';
+      payload.complainant_id_proof = payload.complainant_id_proof || '';
       if (payload.damages_amount === '' || isNaN(parseFloat(payload.damages_amount))) payload.damages_amount = null;
       if (!payload.title) {
         const disp = COMPLAINT_TYPE_MAP[payload.complaint_type]?.title || payload.complaint_type || 'Complaint';
@@ -108,7 +113,12 @@ export default function ComplaintGenerator() {
         throw new Error(msg);
       }
       const draft = await res.json();
-      navigate('/user/complaints/preview', { state: { draftId: draft.id } });
+      navigate('/user/complaints/preview', {
+        state: {
+          draftId: draft.id,
+          ...(editingComplaintId ? { complaintId: editingComplaintId } : {}),
+        }
+      });
     } catch (e) {
       console.error(e);
       alert('Failed to create draft: ' + e.message);
@@ -118,7 +128,20 @@ export default function ComplaintGenerator() {
   const inputCls = (field) =>
     `w-full bg-white border ${errors[field] ? 'border-red-400 focus:ring-red-200' : 'border-slate-200 focus:ring-indigo-200 focus:border-indigo-400'} rounded-xl px-3.5 py-2.5 text-sm outline-none focus:ring-2 transition`;
 
-  const filledCount = [form.complaint_type, form.complainant_name, form.complainant_phone, form.complainant_email, form.complainant_address, form.respondent_name, form.respondent_address, form.incident_date, form.incident_location, form.description, form.damages_amount, form.evidence_summary, form.relief_sought].filter(Boolean).length;
+  const filledCount = [
+    form.complaint_type,
+    form.complainant_name,
+    form.complainant_phone,
+    form.complainant_email,
+    form.complainant_address,
+    form.incident_date,
+    form.incident_time,
+    form.incident_location,
+    form.police_station,
+    form.subject,
+    form.description,
+    form.evidence_summary,
+  ].filter(Boolean).length;
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -165,8 +188,14 @@ export default function ComplaintGenerator() {
                 
               {/* Progress pills */}
               <div className="flex flex-wrap items-center justify-center gap-4 mb-2">
-                {['Type', 'Complainant', 'Respondent', 'Description', 'Additional'].map((step, i) => {
-                  const filled = [!!(form.complaint_type), !!(form.complainant_name && form.complainant_phone && form.complainant_email && form.complainant_address), !!(form.respondent_name && form.respondent_address), !!(form.incident_date && form.incident_location && form.description), !!(form.damages_amount && form.evidence_summary && form.relief_sought)][i];
+                {['Type', 'Complainant', 'Incident', 'Description', 'Evidence'].map((step, i) => {
+                  const filled = [
+                    !!(form.complaint_type),
+                    !!(form.complainant_name && form.complainant_phone && form.complainant_email && form.complainant_address),
+                    !!(form.incident_date && form.incident_location && form.police_station),
+                    !!(form.description),
+                    !!(form.evidence_summary),
+                  ][i];
                   return (
                     <div key={step} className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${filled ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-400 border border-slate-200'}`}>
                       {filled ? <CheckCircle2 size={12} /> : <span className="w-3 h-3 rounded-full border border-slate-300" />}
@@ -231,6 +260,10 @@ export default function ComplaintGenerator() {
                   <textarea rows={2} className={inputCls('complainant_address')} placeholder="Enter complete address" value={form.complainant_address} onChange={update('complainant_address')} />
                     {errors.complainant_address && <p className="mt-1 text-xs text-red-500 flex items-center gap-1"><AlertCircle size={12} /> {errors.complainant_address}</p>}
                 </div>
+                <div className="mt-4">
+                  <label className="block mb-1.5 ml-2 text-xs font-medium text-slate-600 text-left">ID Proof (optional)</label>
+                  <input type="text" className={inputCls('complainant_id_proof')} placeholder="e.g., Aadhaar / PAN / Voter ID" value={form.complainant_id_proof} onChange={update('complainant_id_proof')} />
+                </div>
               </div>
 
               {/* Respondent */}
@@ -239,14 +272,20 @@ export default function ComplaintGenerator() {
                   <User size={16} className="text-violet-500" />
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Respondent Information</p>
                 </div>
-                <div>
-                  <label className="block mb-1.5 ml-2 text-xs font-medium text-slate-600 text-left">Name / Company *</label>
-                  <input type="text" className={inputCls('respondent_name')} placeholder="Name of person/company" value={form.respondent_name} onChange={update('respondent_name')} />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                  <label className="block mb-1.5 ml-2 text-xs font-medium text-slate-600 text-left">Accused Person (optional)</label>
+                  <input type="text" className={inputCls('respondent_name')} placeholder="Enter name if known" value={form.respondent_name} onChange={update('respondent_name')} />
                   {errors.respondent_name && <p className="mt-1 text-xs text-red-500 flex items-center gap-1"><AlertCircle size={12} /> {errors.respondent_name}</p>}
+                  </div>
+                  <div>
+                    <label className="block mb-1.5 ml-2 text-xs font-medium text-slate-600 text-left">Phone (optional)</label>
+                    <input type="text" className={inputCls('respondent_phone')} placeholder="Enter phone if known" value={form.respondent_phone} onChange={update('respondent_phone')} />
+                  </div>
                 </div>
                 <div className="mt-4">
-                  <label className="block mb-1.5 ml-2 text-xs font-medium text-slate-600 text-left">Address</label>
-                  <textarea rows={2} className={inputCls('respondent_address')} placeholder="Respondent's address" value={form.respondent_address} onChange={update('respondent_address')} />
+                  <label className="block mb-1.5 ml-2 text-xs font-medium text-slate-600 text-left">Accused Address (optional)</label>
+                  <textarea rows={2} className={inputCls('respondent_address')} placeholder="Enter address if known" value={form.respondent_address} onChange={update('respondent_address')} />
                     {errors.respondent_address && <p className="mt-1 text-xs text-red-500 flex items-center gap-1"><AlertCircle size={12} /> {errors.respondent_address}</p>}
                 </div>
               </div>
@@ -257,7 +296,7 @@ export default function ComplaintGenerator() {
                   <MapPin size={16} className="text-amber-500" />
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Incident Details</p>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label className="block mb-1.5 ml-2 text-xs font-medium text-slate-600 text-left">Date of Incident</label>
                     <div className="relative">
@@ -267,12 +306,27 @@ export default function ComplaintGenerator() {
                     </div>
                   </div>
                   <div>
+                    <label className="block mb-1.5 ml-2 text-xs font-medium text-slate-600 text-left">Time (optional)</label>
+                    <input type="time" className={inputCls('incident_time')} value={form.incident_time} onChange={update('incident_time')} />
+                  </div>
+                  <div>
                     <label className="block mb-1.5 ml-2 text-xs font-medium text-slate-600 text-left">Location</label>
                     <div className="relative">
                       <MapPin size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                       <input type="text" className={`${inputCls('incident_location')} pl-9`} placeholder="Where did it occur?" value={form.incident_location} onChange={update('incident_location')} />
                     {errors.incident_location && <p className="mt-1 text-xs text-red-500 flex items-center gap-1"><AlertCircle size={12} /> {errors.incident_location}</p>}
                     </div>
+                  </div>
+                </div>
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block mb-1.5 ml-2 text-xs font-medium text-slate-600 text-left">Police Station *</label>
+                    <input type="text" className={inputCls('police_station')} placeholder="e.g., Ernakulam Town Police Station" value={form.police_station} onChange={update('police_station')} />
+                    {errors.police_station && <p className="mt-1 text-xs text-red-500 flex items-center gap-1"><AlertCircle size={12} /> {errors.police_station}</p>}
+                  </div>
+                  <div>
+                    <label className="block mb-1.5 ml-2 text-xs font-medium text-slate-600 text-left">Subject (optional)</label>
+                    <input type="text" className={inputCls('subject')} placeholder="Complaint regarding incident..." value={form.subject} onChange={update('subject')} />
                   </div>
                 </div>
                 <div className="mt-4">
