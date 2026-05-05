@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { Mail, Phone, MapPin, Send, Clock, MessageSquare } from 'lucide-react';
+import { apiUrl } from '../api';
 
 function useFadeObserver() {
   useEffect(() => {
@@ -27,15 +28,44 @@ export default function Contact() {
   useFadeObserver();
   const [form, setForm] = useState({ name: '', email: '', subject: '', message: '' });
   const [sent, setSent] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState('');
 
   const update = (field) => (e) => setForm(prev => ({ ...prev, [field]: e.target.value }));
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // For now, just show success — backend endpoint can be added later
-    setSent(true);
-    setTimeout(() => setSent(false), 4000);
-    setForm({ name: '', email: '', subject: '', message: '' });
+    if (sending) return;
+
+    setSending(true);
+    setError('');
+    try {
+      const res = await fetch(apiUrl('/contact-queries/'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: form.name,
+          email: form.email,
+          subject: form.subject,
+          message: form.message,
+        }),
+      });
+
+      if (!res.ok) {
+        const payload = await res.json().catch(() => null);
+        const msg = payload?.detail || (payload ? JSON.stringify(payload) : 'Failed to send message');
+        setError(msg);
+        return;
+      }
+
+      setSent(true);
+      setTimeout(() => setSent(false), 4000);
+      setForm({ name: '', email: '', subject: '', message: '' });
+    } catch {
+      setError('Network error. Please try again.');
+    } finally {
+      setSending(false);
+    }
   };
 
   const inputCls = 'w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 transition';
@@ -95,6 +125,12 @@ export default function Contact() {
               </div>
             )}
 
+            {error && (
+              <div className="mb-4 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700 font-medium">
+                {error}
+              </div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
@@ -116,9 +152,10 @@ export default function Contact() {
               </div>
               <button
                 type="submit"
-                className="w-full flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 shadow-sm transition"
+                disabled={sending}
+                className="w-full flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                <Send size={15} /> Send Message
+                <Send size={15} /> {sending ? 'Sending…' : 'Send Message'}
               </button>
             </form>
           </div>

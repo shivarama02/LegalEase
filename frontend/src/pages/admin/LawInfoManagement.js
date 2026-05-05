@@ -3,23 +3,36 @@ import AdminSidebar from '../../components/AdminSidebar';
 import { apiUrl } from '../../api';
 import {
   FileText, Search, Trash2, Loader2, X, CheckCircle2, Plus, Pencil, BookOpen, List, ScrollText, Globe, FolderOpen,
+  ChevronRight,
 } from 'lucide-react';
 
-const TABS = [
-  { key: 'domains', label: 'Domains', icon: Globe },
-  { key: 'categories', label: 'Categories', icon: FolderOpen },
-  { key: 'laws', label: 'Laws', icon: FileText },
-  { key: 'sections', label: 'Sections', icon: List },
-  { key: 'details', label: 'Section Details', icon: ScrollText },
-];
+const LEVELS = {
+  domains: 'domains',
+  categories: 'categories',
+  laws: 'laws',
+  sections: 'sections',
+  details: 'details',
+};
 
 export default function LawInfoManagement() {
   const token = sessionStorage.getItem('authToken');
   const headers = token ? { Authorization: `Token ${token}` } : {};
   const jsonHeaders = { ...headers, 'Content-Type': 'application/json' };
 
-  const [activeTab, setActiveTab] = useState('domains');
+  const [level, setLevel] = useState(LEVELS.domains);
   const [toast, setToast] = useState('');
+
+  const [selectedDomain, setSelectedDomain] = useState(null);
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [selectedLaw, setSelectedLaw] = useState(null);
+  const [selectedSection, setSelectedSection] = useState(null);
+
+  useEffect(() => {
+    if (level === LEVELS.categories && !selectedDomain) setLevel(LEVELS.domains);
+    if (level === LEVELS.laws && !selectedCategory) setLevel(LEVELS.domains);
+    if (level === LEVELS.sections && !selectedLaw) setLevel(LEVELS.domains);
+    if (level === LEVELS.details && !selectedSection) setLevel(LEVELS.domains);
+  }, [level, selectedDomain, selectedCategory, selectedLaw, selectedSection]);
 
   // Domain state
   const [domains, setDomains] = useState([]);
@@ -69,40 +82,73 @@ export default function LawInfoManagement() {
   }, [domainSearch]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadCategories = useCallback(async () => {
+    if (!selectedDomain?.id) {
+      setCategories([]);
+      setCatLoading(false);
+      return;
+    }
     setCatLoading(true);
     try {
-      const url = catSearch ? apiUrl(`/law-categories/?search=${encodeURIComponent(catSearch)}`) : apiUrl('/law-categories/');
+      const params = new URLSearchParams();
+      params.set('domain', selectedDomain.id);
+      if (catSearch) params.set('search', catSearch);
+      const url = apiUrl(`/law-categories/?${params.toString()}`);
       const res = await fetch(url, { headers });
       if (res.ok) { const d = await res.json(); setCategories(Array.isArray(d) ? d : d.results || []); }
     } catch { } finally { setCatLoading(false); }
-  }, [catSearch]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [catSearch, selectedDomain?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadLaws = useCallback(async () => {
+    if (!selectedCategory?.id) {
+      setLaws([]);
+      setLawLoading(false);
+      return;
+    }
     setLawLoading(true);
     try {
-      const url = lawSearch ? apiUrl(`/laws/?search=${encodeURIComponent(lawSearch)}`) : apiUrl('/laws/');
+      const params = new URLSearchParams();
+      params.set('category', selectedCategory.id);
+      if (lawSearch) params.set('search', lawSearch);
+      const url = apiUrl(`/laws/?${params.toString()}`);
       const res = await fetch(url, { headers });
       if (res.ok) { const d = await res.json(); setLaws(Array.isArray(d) ? d : d.results || []); }
     } catch { } finally { setLawLoading(false); }
-  }, [lawSearch]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [lawSearch, selectedCategory?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadSections = useCallback(async () => {
+    if (!selectedLaw?.id) {
+      setSections([]);
+      setSecLoading(false);
+      return;
+    }
     setSecLoading(true);
     try {
-      const url = secSearch ? apiUrl(`/law-sections/?search=${encodeURIComponent(secSearch)}`) : apiUrl('/law-sections/');
+      const params = new URLSearchParams();
+      params.set('law', selectedLaw.id);
+      if (secSearch) params.set('search', secSearch);
+      const url = apiUrl(`/law-sections/?${params.toString()}`);
       const res = await fetch(url, { headers });
       if (res.ok) { const d = await res.json(); setSections(Array.isArray(d) ? d : d.results || []); }
     } catch { } finally { setSecLoading(false); }
-  }, [secSearch]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [secSearch, selectedLaw?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadDetails = useCallback(async () => {
+    if (!selectedSection?.id) {
+      setDetails([]);
+      setDetLoading(false);
+      return;
+    }
     setDetLoading(true);
     try {
       const url = detSearch ? apiUrl(`/law-section-details/?search=${encodeURIComponent(detSearch)}`) : apiUrl('/law-section-details/');
       const res = await fetch(url, { headers });
-      if (res.ok) { const d = await res.json(); setDetails(Array.isArray(d) ? d : d.results || []); }
+      if (res.ok) {
+        const d = await res.json();
+        const arr = Array.isArray(d) ? d : d.results || [];
+        setDetails(arr.filter(x => String(x.section) === String(selectedSection.id)));
+      }
     } catch { } finally { setDetLoading(false); }
-  }, [detSearch]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [detSearch, selectedSection?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { const t = setTimeout(loadDomains, 300); return () => clearTimeout(t); }, [loadDomains]);
   useEffect(() => { const t = setTimeout(loadCategories, 300); return () => clearTimeout(t); }, [loadCategories]);
@@ -157,22 +203,22 @@ export default function LawInfoManagement() {
       </div>
     );
   }
-  function renderField(label, value, onChange, { type = 'text', required = false, rows = 0, options = null, placeholder = '' } = {}) {
+  function renderField(label, value, onChange, { type = 'text', required = false, rows = 0, options = null, placeholder = '', disabled = false } = {}) {
     return (
       <div>
         <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">{label}{required && ' *'}</label>
         {options ? (
-          <select value={value || ''} onChange={e => onChange(e.target.value)}
-            className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200 focus:border-teal-400 bg-white">
+          <select value={value || ''} onChange={e => onChange(e.target.value)} disabled={disabled}
+            className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200 focus:border-teal-400 bg-white disabled:bg-slate-50 disabled:text-slate-400">
             <option value="">— Select —</option>
             {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         ) : rows > 0 ? (
-          <textarea rows={rows} value={value || ''} onChange={e => onChange(e.target.value)} placeholder={placeholder}
-            className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200 focus:border-teal-400 resize-none" />
+          <textarea rows={rows} value={value || ''} onChange={e => onChange(e.target.value)} placeholder={placeholder} disabled={disabled}
+            className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200 focus:border-teal-400 resize-none disabled:bg-slate-50 disabled:text-slate-400" />
         ) : (
-          <input type={type} value={value || ''} onChange={e => onChange(e.target.value)} placeholder={placeholder}
-            className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200 focus:border-teal-400" />
+          <input type={type} value={value || ''} onChange={e => onChange(e.target.value)} placeholder={placeholder} disabled={disabled}
+            className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200 focus:border-teal-400 disabled:bg-slate-50 disabled:text-slate-400" />
         )}
       </div>
     );
@@ -199,9 +245,180 @@ export default function LawInfoManagement() {
     );
   }
 
-  // ──────── DOMAIN TAB ────────
+  function resetToDomains() {
+    setLevel(LEVELS.domains);
+    setSelectedDomain(null);
+    setSelectedCategory(null);
+    setSelectedLaw(null);
+    setSelectedSection(null);
+    setCatSearch('');
+    setLawSearch('');
+    setSecSearch('');
+    setDetSearch('');
+  }
+
+  function goToCategories(domain) {
+    setSelectedDomain(domain);
+    setSelectedCategory(null);
+    setSelectedLaw(null);
+    setSelectedSection(null);
+    setCatSearch('');
+    setLawSearch('');
+    setSecSearch('');
+    setDetSearch('');
+    setLevel(LEVELS.categories);
+  }
+
+  function goToLaws(category) {
+    setSelectedCategory(category);
+    setSelectedLaw(null);
+    setSelectedSection(null);
+    setLawSearch('');
+    setSecSearch('');
+    setDetSearch('');
+    setLevel(LEVELS.laws);
+  }
+
+  function goToSections(law) {
+    setSelectedLaw(law);
+    setSelectedSection(null);
+    setSecSearch('');
+    setDetSearch('');
+    setLevel(LEVELS.sections);
+  }
+
+  function goToDetails(section) {
+    setSelectedSection(section);
+    setDetSearch('');
+    setLevel(LEVELS.details);
+  }
+
+  function renderBreadcrumb() {
+    return (
+      <div className="flex flex-wrap items-center gap-2 text-sm text-slate-600 mb-6">
+        <button onClick={resetToDomains} className={`font-semibold hover:text-slate-900 ${level === LEVELS.domains ? 'text-slate-900' : ''}`}>
+          Domains
+        </button>
+        {selectedDomain && (
+          <>
+            <ChevronRight size={16} className="text-slate-300" />
+            <button
+              onClick={() => {
+                setSelectedCategory(null);
+                setSelectedLaw(null);
+                setSelectedSection(null);
+                setLawSearch('');
+                setSecSearch('');
+                setDetSearch('');
+                setLevel(LEVELS.categories);
+              }}
+              className={`font-semibold hover:text-slate-900 ${level === LEVELS.categories ? 'text-slate-900' : ''}`}
+            >
+              {selectedDomain.domain_name}
+            </button>
+          </>
+        )}
+        {selectedCategory && (
+          <>
+            <ChevronRight size={16} className="text-slate-300" />
+            <button
+              onClick={() => {
+                setSelectedLaw(null);
+                setSelectedSection(null);
+                setSecSearch('');
+                setDetSearch('');
+                setLevel(LEVELS.laws);
+              }}
+              className={`font-semibold hover:text-slate-900 ${level === LEVELS.laws ? 'text-slate-900' : ''}`}
+            >
+              {selectedCategory.category_name}
+            </button>
+          </>
+        )}
+        {selectedLaw && (
+          <>
+            <ChevronRight size={16} className="text-slate-300" />
+            <button
+              onClick={() => {
+                setSelectedSection(null);
+                setDetSearch('');
+                setLevel(LEVELS.sections);
+              }}
+              className={`font-semibold hover:text-slate-900 ${level === LEVELS.sections ? 'text-slate-900' : ''}`}
+            >
+              {selectedLaw.short_title || selectedLaw.law_title}
+            </button>
+          </>
+        )}
+        {selectedSection && (
+          <>
+            <ChevronRight size={16} className="text-slate-300" />
+            <span className={`font-semibold ${level === LEVELS.details ? 'text-slate-900' : ''}`}>
+              {selectedSection.section_number}
+            </span>
+          </>
+        )}
+      </div>
+    );
+  }
+
+  function renderCard({
+    title,
+    subtitle,
+    meta,
+    icon: Icon,
+    onClick,
+    onEdit,
+    onDelete,
+  }) {
+    return (
+      <div
+        onClick={onClick}
+        className="group bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-teal-200 transition-all duration-200 cursor-pointer overflow-hidden"
+      >
+        <div className="h-2 bg-gradient-to-r from-teal-500 to-emerald-500" />
+        <div className="p-5">
+          <div className="flex items-start justify-between gap-3 mb-3">
+            <div className="flex items-start gap-3 min-w-0">
+              <div className="w-11 h-11 rounded-xl bg-teal-50 flex items-center justify-center flex-shrink-0">
+                <Icon size={20} className="text-teal-600" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-sm font-extrabold text-slate-800 truncate group-hover:text-teal-700 transition-colors">{title}</h3>
+                {subtitle && <p className="text-xs text-slate-500 mt-1 line-clamp-2">{subtitle}</p>}
+                {meta && <div className="text-[10px] text-slate-400 mt-1">{meta}</div>}
+              </div>
+            </div>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              {onEdit && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onEdit(); }}
+                  className="p-2 rounded-lg text-slate-400 hover:bg-teal-50 hover:text-teal-600 transition"
+                >
+                  <Pencil size={16} />
+                </button>
+              )}
+              {onDelete && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                  className="p-2 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-500 transition"
+                >
+                  <Trash2 size={16} />
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center text-xs font-semibold text-teal-600 mt-1 group-hover:gap-2 transition-all">
+            Open <ChevronRight size={14} className="ml-0.5" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ──────── DOMAINS LEVEL ────────
   function updateDomain(k, v) { setDomainModal(m => ({ ...m, data: { ...m.data, [k]: v } })); }
-  function renderDomainTab() {
+  function renderDomainsLevel() {
     return (
       <>
         <div className="flex items-center justify-between mb-4">
@@ -213,21 +430,21 @@ export default function LawInfoManagement() {
         </div>
         {renderSearch(domainSearch, setDomainSearch, 'Search domains…')}
         {domainLoading ? renderLoading('Loading…') : domains.length === 0 ? renderEmpty(domainSearch, 'Domains') : (
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
             {domains.map(d => (
-              <div key={d.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition p-5 flex items-start justify-between gap-4">
-                <div className="flex items-start gap-4 flex-1 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-100 to-emerald-100 flex items-center justify-center flex-shrink-0"><Globe size={18} className="text-teal-600" /></div>
-                  <div className="min-w-0 flex-1">
-                    <h3 className="text-sm font-bold text-slate-800">{d.domain_name}</h3>
-                    <p className="text-xs text-slate-500 mt-1 line-clamp-2">{d.description}</p>
-                    <span className="text-[10px] text-slate-400">Order: {d.display_order} · {d.categories?.length || 0} categories</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1 flex-shrink-0">
-                  <button onClick={() => setDomainModal({ mode: 'edit', data: { ...d } })} className="p-2 rounded-lg text-slate-400 hover:bg-teal-50 hover:text-teal-500 transition"><Pencil size={16} /></button>
-                  <button onClick={() => handleDelete('law-domains', d.id, setDomains, 'Domain')} className="p-2 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-500 transition"><Trash2 size={16} /></button>
-                </div>
+              <div key={d.id}>
+                {renderCard({
+                  title: d.domain_name,
+                  subtitle: d.description,
+                  meta: `Order: ${d.display_order} · ${(d.categories?.length || 0)} categories`,
+                  icon: Globe,
+                  onClick: () => goToCategories(d),
+                  onEdit: () => setDomainModal({ mode: 'edit', data: { ...d } }),
+                  onDelete: async () => {
+                    await handleDelete('law-domains', d.id, setDomains, 'Domain');
+                    if (selectedDomain?.id === d.id) resetToDomains();
+                  },
+                })}
               </div>
             ))}
           </div>
@@ -249,38 +466,43 @@ export default function LawInfoManagement() {
       'Domain', !domainModal.data.domain_name);
   }
 
-  // ──────── CATEGORY TAB ────────
+  // ──────── CATEGORIES LEVEL ────────
   function updateCat(k, v) { setCatModal(m => { const u = { ...m, data: { ...m.data, [k]: v } }; if (k === 'category_name') u.data.slug = autoSlug(v); return u; }); }
-  function renderCatTab() {
+  function renderCategoriesLevel() {
     return (
       <>
         <div className="flex items-center justify-between mb-4">
-          <p className="text-sm text-slate-500">Categories within domains — e.g. Criminal Law under Criminal & Penal Law.</p>
-          <button onClick={() => setCatModal({ mode: 'add', data: { domain: '', category_name: '', slug: '', description: '' } })}
+          <p className="text-sm text-slate-500">Categories under: <span className="font-semibold text-slate-700">{selectedDomain?.domain_name}</span></p>
+          <button onClick={() => setCatModal({ mode: 'add', data: { domain: selectedDomain?.id || '', category_name: '', slug: '', description: '' } })}
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-teal-500 to-emerald-500 text-white text-sm font-semibold shadow-sm hover:shadow-md transition">
             <Plus size={16} /> Add Category
           </button>
         </div>
         {renderSearch(catSearch, setCatSearch, 'Search categories…')}
         {catLoading ? renderLoading('Loading…') : categories.length === 0 ? renderEmpty(catSearch, 'Categories') : (
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
             {categories.map(c => (
-              <div key={c.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition p-5 flex items-start justify-between gap-4">
-                <div className="flex items-start gap-4 flex-1 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center flex-shrink-0"><FolderOpen size={18} className="text-blue-600" /></div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-sm font-bold text-slate-800">{c.category_name}</h3>
-                      {c.domain_name && <span className="px-2 py-0.5 rounded-full bg-teal-50 text-teal-600 text-[10px] font-semibold">{c.domain_name}</span>}
-                    </div>
-                    <p className="text-xs text-slate-500 mt-1 line-clamp-2">{c.description}</p>
-                    <span className="text-[10px] text-slate-400">Slug: {c.slug} · {c.laws_count ?? 0} laws</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1 flex-shrink-0">
-                  <button onClick={() => setCatModal({ mode: 'edit', data: { ...c } })} className="p-2 rounded-lg text-slate-400 hover:bg-teal-50 hover:text-teal-500 transition"><Pencil size={16} /></button>
-                  <button onClick={() => handleDelete('law-categories', c.id, setCategories, 'Category')} className="p-2 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-500 transition"><Trash2 size={16} /></button>
-                </div>
+              <div key={c.id}>
+                {renderCard({
+                  title: c.category_name,
+                  subtitle: c.description,
+                  meta: `Slug: ${c.slug} · ${c.laws_count ?? 0} laws`,
+                  icon: FolderOpen,
+                  onClick: () => goToLaws(c),
+                  onEdit: () => setCatModal({ mode: 'edit', data: { ...c } }),
+                  onDelete: async () => {
+                    await handleDelete('law-categories', c.id, setCategories, 'Category');
+                    if (selectedCategory?.id === c.id) {
+                      setSelectedCategory(null);
+                      setSelectedLaw(null);
+                      setSelectedSection(null);
+                      setLawSearch('');
+                      setSecSearch('');
+                      setDetSearch('');
+                      setLevel(LEVELS.categories);
+                    }
+                  },
+                })}
               </div>
             ))}
           </div>
@@ -291,9 +513,10 @@ export default function LawInfoManagement() {
   function renderCatModal() {
     if (!catModal) return null;
     const domainOpts = domains.map(d => ({ value: d.id, label: d.domain_name }));
+    const lockDomain = !!selectedDomain?.id && catModal.mode === 'add';
     const fields = (
       <>
-        {renderField('Domain', catModal.data.domain, v => updateCat('domain', Number(v) || ''), { options: domainOpts, required: true })}
+        {renderField('Domain', catModal.data.domain, v => updateCat('domain', Number(v) || ''), { options: domainOpts, required: true, disabled: lockDomain })}
         {renderField('Category Name', catModal.data.category_name, v => updateCat('category_name', v), { required: true })}
         {renderField('Slug', catModal.data.slug, v => updateCat('slug', v), { placeholder: 'auto-generated' })}
         {renderField('Description', catModal.data.description, v => updateCat('description', v), { rows: 3 })}
@@ -304,38 +527,41 @@ export default function LawInfoManagement() {
       'Category', !catModal.data.category_name);
   }
 
-  // ──────── LAW TAB ────────
+  // ──────── LAWS LEVEL ────────
   function updateLaw(k, v) { setLawModal(m => ({ ...m, data: { ...m.data, [k]: v } })); }
-  function renderLawTab() {
+  function renderLawsLevel() {
     return (
       <>
         <div className="flex items-center justify-between mb-4">
-          <p className="text-sm text-slate-500">Individual acts/statutes — e.g. IPC, CrPC, Hindu Marriage Act.</p>
-          <button onClick={() => setLawModal({ mode: 'add', data: { category: '', law_title: '', short_title: '', enactment_year: '', law_type: '', authority: '', summary: '' } })}
+          <p className="text-sm text-slate-500">Laws under: <span className="font-semibold text-slate-700">{selectedCategory?.category_name}</span></p>
+          <button onClick={() => setLawModal({ mode: 'add', data: { category: selectedCategory?.id || '', law_title: '', short_title: '', enactment_year: '', law_type: '', authority: '', summary: '' } })}
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-teal-500 to-emerald-500 text-white text-sm font-semibold shadow-sm hover:shadow-md transition">
             <Plus size={16} /> Add Law
           </button>
         </div>
         {renderSearch(lawSearch, setLawSearch, 'Search laws…')}
         {lawLoading ? renderLoading('Loading…') : laws.length === 0 ? renderEmpty(lawSearch, 'Laws') : (
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
             {laws.map(l => (
-              <div key={l.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition p-5 flex items-start justify-between gap-4">
-                <div className="flex items-start gap-4 flex-1 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center flex-shrink-0"><FileText size={18} className="text-indigo-600" /></div>
-                  <div className="min-w-0 flex-1">
-                    <h3 className="text-sm font-bold text-slate-800">{l.law_title}</h3>
-                    <p className="text-xs text-slate-500 mt-1 line-clamp-2">{l.summary}</p>
-                    <div className="flex flex-wrap gap-2 mt-1">
-                      {l.enactment_year && <span className="text-[10px] text-slate-400">Year: {l.enactment_year}</span>}
-                      <span className="text-[10px] text-slate-400">{l.sections_count ?? 0} sections</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1 flex-shrink-0">
-                  <button onClick={() => setLawModal({ mode: 'edit', data: { ...l } })} className="p-2 rounded-lg text-slate-400 hover:bg-teal-50 hover:text-teal-500 transition"><Pencil size={16} /></button>
-                  <button onClick={() => handleDelete('laws', l.id, setLaws, 'Law')} className="p-2 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-500 transition"><Trash2 size={16} /></button>
-                </div>
+              <div key={l.id}>
+                {renderCard({
+                  title: l.short_title || l.law_title,
+                  subtitle: l.summary,
+                  meta: `${l.enactment_year ? `Year: ${l.enactment_year} · ` : ''}${l.sections_count ?? 0} sections`,
+                  icon: FileText,
+                  onClick: () => goToSections(l),
+                  onEdit: () => setLawModal({ mode: 'edit', data: { ...l } }),
+                  onDelete: async () => {
+                    await handleDelete('laws', l.id, setLaws, 'Law');
+                    if (selectedLaw?.id === l.id) {
+                      setSelectedLaw(null);
+                      setSelectedSection(null);
+                      setSecSearch('');
+                      setDetSearch('');
+                      setLevel(LEVELS.laws);
+                    }
+                  },
+                })}
               </div>
             ))}
           </div>
@@ -346,9 +572,10 @@ export default function LawInfoManagement() {
   function renderLawModal() {
     if (!lawModal) return null;
     const catOpts = categories.map(c => ({ value: c.id, label: c.category_name }));
+    const lockCategory = !!selectedCategory?.id && lawModal.mode === 'add';
     const fields = (
       <>
-        {renderField('Category', lawModal.data.category, v => updateLaw('category', Number(v) || ''), { options: catOpts, required: true })}
+        {renderField('Category', lawModal.data.category, v => updateLaw('category', Number(v) || ''), { options: catOpts, required: true, disabled: lockCategory })}
         {renderField('Law Title', lawModal.data.law_title, v => updateLaw('law_title', v), { required: true })}
         {renderField('Short Title', lawModal.data.short_title, v => updateLaw('short_title', v))}
         {renderField('Enactment Year', lawModal.data.enactment_year, v => updateLaw('enactment_year', v ? Number(v) : ''), { type: 'number' })}
@@ -362,38 +589,39 @@ export default function LawInfoManagement() {
       'Law', !lawModal.data.law_title);
   }
 
-  // ──────── SECTION TAB ────────
+  // ──────── SECTIONS LEVEL ────────
   function updateSec(k, v) { setSecModal(m => ({ ...m, data: { ...m.data, [k]: v } })); }
-  function renderSecTab() {
+  function renderSectionsLevel() {
     return (
       <>
         <div className="flex items-center justify-between mb-4">
-          <p className="text-sm text-slate-500">Sections within a law — e.g. Section 302, Section 420.</p>
-          <button onClick={() => setSecModal({ mode: 'add', data: { law: '', section_number: '', section_title: '', chapter: '', section_text: '' } })}
+          <p className="text-sm text-slate-500">Sections under: <span className="font-semibold text-slate-700">{selectedLaw?.short_title || selectedLaw?.law_title}</span></p>
+          <button onClick={() => setSecModal({ mode: 'add', data: { law: selectedLaw?.id || '', section_number: '', section_title: '', chapter: '', section_text: '' } })}
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-teal-500 to-emerald-500 text-white text-sm font-semibold shadow-sm hover:shadow-md transition">
             <Plus size={16} /> Add Section
           </button>
         </div>
         {renderSearch(secSearch, setSecSearch, 'Search sections…')}
         {secLoading ? renderLoading('Loading…') : sections.length === 0 ? renderEmpty(secSearch, 'Sections') : (
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
             {sections.map(s => (
-              <div key={s.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition p-5 flex items-start justify-between gap-4">
-                <div className="flex items-start gap-4 flex-1 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center flex-shrink-0"><List size={18} className="text-amber-600" /></div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-sm font-bold text-slate-800">{s.section_number} — {s.section_title}</h3>
-                      {s.chapter && <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 text-[10px] font-semibold">{s.chapter}</span>}
-                    </div>
-                    <p className="text-xs text-slate-500 mt-1 line-clamp-2">{s.section_text}</p>
-                    {s.detail && <span className="text-[10px] text-green-600 font-medium">Has detail</span>}
-                  </div>
-                </div>
-                <div className="flex items-center gap-1 flex-shrink-0">
-                  <button onClick={() => setSecModal({ mode: 'edit', data: { ...s } })} className="p-2 rounded-lg text-slate-400 hover:bg-teal-50 hover:text-teal-500 transition"><Pencil size={16} /></button>
-                  <button onClick={() => handleDelete('law-sections', s.id, setSections, 'Section')} className="p-2 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-500 transition"><Trash2 size={16} /></button>
-                </div>
+              <div key={s.id}>
+                {renderCard({
+                  title: `${s.section_number} — ${s.section_title}`,
+                  subtitle: s.section_text,
+                  meta: `${s.chapter ? `Chapter: ${s.chapter} · ` : ''}${s.detail ? 'Has detail' : 'No detail'}`,
+                  icon: List,
+                  onClick: () => goToDetails(s),
+                  onEdit: () => setSecModal({ mode: 'edit', data: { ...s } }),
+                  onDelete: async () => {
+                    await handleDelete('law-sections', s.id, setSections, 'Section');
+                    if (selectedSection?.id === s.id) {
+                      setSelectedSection(null);
+                      setDetSearch('');
+                      setLevel(LEVELS.sections);
+                    }
+                  },
+                })}
               </div>
             ))}
           </div>
@@ -404,9 +632,10 @@ export default function LawInfoManagement() {
   function renderSecModal() {
     if (!secModal) return null;
     const lawOpts = laws.map(l => ({ value: l.id, label: l.law_title }));
+    const lockLaw = !!selectedLaw?.id && secModal.mode === 'add';
     const fields = (
       <>
-        {renderField('Law', secModal.data.law, v => updateSec('law', Number(v) || ''), { options: lawOpts, required: true })}
+        {renderField('Law', secModal.data.law, v => updateSec('law', Number(v) || ''), { options: lawOpts, required: true, disabled: lockLaw })}
         {renderField('Section Number', secModal.data.section_number, v => updateSec('section_number', v), { required: true, placeholder: 'e.g. 302, 420' })}
         {renderField('Section Title', secModal.data.section_title, v => updateSec('section_title', v), { required: true })}
         {renderField('Chapter', secModal.data.chapter, v => updateSec('chapter', v))}
@@ -418,40 +647,40 @@ export default function LawInfoManagement() {
       'Section', !secModal.data.section_number);
   }
 
-  // ──────── DETAIL TAB ────────
+  // ──────── DETAILS LEVEL ────────
   function updateDet(k, v) { setDetModal(m => ({ ...m, data: { ...m.data, [k]: v } })); }
-  function renderDetTab() {
+  function renderDetailsLevel() {
+    const hasDetail = details.length > 0;
+    const firstDetail = details[0];
     return (
       <>
         <div className="flex items-center justify-between mb-4">
-          <p className="text-sm text-slate-500">Detailed info for a section — imprisonment, fines, bailable status, etc.</p>
-          <button onClick={() => setDetModal({ mode: 'add', data: { section: '', simplified_explanation: '', offence_description: '', imprisonment_term: '', fine_amount: '', compensation: '', bailable_status: '', cognizable_status: '', example_scenario: '' } })}
+          <p className="text-sm text-slate-500">Detail for: <span className="font-semibold text-slate-700">Section {selectedSection?.section_number}</span></p>
+          <button
+            onClick={() => {
+              if (hasDetail && firstDetail) setDetModal({ mode: 'edit', data: { ...firstDetail } });
+              else setDetModal({ mode: 'add', data: { section: selectedSection?.id || '', simplified_explanation: '', offence_description: '', imprisonment_term: '', fine_amount: '', compensation: '', bailable_status: '', cognizable_status: '', example_scenario: '' } });
+            }}
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-teal-500 to-emerald-500 text-white text-sm font-semibold shadow-sm hover:shadow-md transition">
-            <Plus size={16} /> Add Detail
+            <Plus size={16} /> {hasDetail ? 'Edit Detail' : 'Add Detail'}
           </button>
         </div>
         {renderSearch(detSearch, setDetSearch, 'Search details…')}
         {detLoading ? renderLoading('Loading…') : details.length === 0 ? renderEmpty(detSearch, 'Section Details') : (
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
             {details.map(d => (
-              <div key={d.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition p-5 flex items-start justify-between gap-4">
-                <div className="flex items-start gap-4 flex-1 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center flex-shrink-0"><ScrollText size={18} className="text-purple-600" /></div>
-                  <div className="min-w-0 flex-1">
-                    <h3 className="text-sm font-bold text-slate-800">Section #{d.section}</h3>
-                    <p className="text-xs text-slate-500 mt-1 line-clamp-2">{d.simplified_explanation}</p>
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {d.imprisonment_term && <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-50 text-red-600 font-medium">Imprisonment: {d.imprisonment_term}</span>}
-                      {d.fine_amount && <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 font-medium">Fine: {d.fine_amount}</span>}
-                      {d.bailable_status && <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 font-medium">{d.bailable_status}</span>}
-                      {d.cognizable_status && <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-50 text-green-600 font-medium">{d.cognizable_status}</span>}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1 flex-shrink-0">
-                  <button onClick={() => setDetModal({ mode: 'edit', data: { ...d } })} className="p-2 rounded-lg text-slate-400 hover:bg-teal-50 hover:text-teal-500 transition"><Pencil size={16} /></button>
-                  <button onClick={() => handleDelete('law-section-details', d.id, setDetails, 'Detail')} className="p-2 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-500 transition"><Trash2 size={16} /></button>
-                </div>
+              <div key={d.id}>
+                {renderCard({
+                  title: `Section #${selectedSection?.section_number}`,
+                  subtitle: d.simplified_explanation,
+                  meta: `${d.imprisonment_term ? `Imprisonment: ${d.imprisonment_term} · ` : ''}${d.fine_amount ? `Fine: ${d.fine_amount}` : ''}`.trim() || 'Detail',
+                  icon: ScrollText,
+                  onClick: () => setDetModal({ mode: 'edit', data: { ...d } }),
+                  onEdit: () => setDetModal({ mode: 'edit', data: { ...d } }),
+                  onDelete: async () => {
+                    await handleDelete('law-section-details', d.id, setDetails, 'Detail');
+                  },
+                })}
               </div>
             ))}
           </div>
@@ -462,9 +691,10 @@ export default function LawInfoManagement() {
   function renderDetModal() {
     if (!detModal) return null;
     const secOpts = sections.map(s => ({ value: s.id, label: `${s.section_number} — ${s.section_title}` }));
+    const lockSection = !!selectedSection?.id && detModal.mode === 'add';
     const fields = (
       <>
-        {renderField('Section', detModal.data.section, v => updateDet('section', Number(v) || ''), { options: secOpts, required: true })}
+        {renderField('Section', detModal.data.section, v => updateDet('section', Number(v) || ''), { options: secOpts, required: true, disabled: lockSection })}
         {renderField('Simplified Explanation', detModal.data.simplified_explanation, v => updateDet('simplified_explanation', v), { rows: 3 })}
         {renderField('Offence Description', detModal.data.offence_description, v => updateDet('offence_description', v), { rows: 3 })}
         {renderField('Imprisonment Term', detModal.data.imprisonment_term, v => updateDet('imprisonment_term', v), { placeholder: 'e.g. 3-7 years rigorous' })}
@@ -502,26 +732,13 @@ export default function LawInfoManagement() {
             </div>
           )}
 
-          <div className="flex gap-1 mb-6 bg-white rounded-xl border border-slate-200 p-1 shadow-sm overflow-x-auto">
-            {TABS.map(tab => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.key;
-              return (
-                <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-                  className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition whitespace-nowrap ${
-                    isActive ? 'bg-gradient-to-r from-teal-500 to-emerald-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
-                  }`}>
-                  <Icon size={16} /> {tab.label}
-                </button>
-              );
-            })}
-          </div>
+          {renderBreadcrumb()}
 
-          {activeTab === 'domains' && renderDomainTab()}
-          {activeTab === 'categories' && renderCatTab()}
-          {activeTab === 'laws' && renderLawTab()}
-          {activeTab === 'sections' && renderSecTab()}
-          {activeTab === 'details' && renderDetTab()}
+          {level === LEVELS.domains && renderDomainsLevel()}
+          {level === LEVELS.categories && renderCategoriesLevel()}
+          {level === LEVELS.laws && renderLawsLevel()}
+          {level === LEVELS.sections && renderSectionsLevel()}
+          {level === LEVELS.details && renderDetailsLevel()}
         </div>
       </div>
 

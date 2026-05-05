@@ -17,9 +17,7 @@ export function connectPresenceSocket(onPresence) {
   ws.onmessage = (event) => {
     try {
       const data = JSON.parse(event.data);
-      if (data.type === "presence") {
-        onPresence(data);
-      }
+      if (data.type === "presence" || data.type === "presence_snapshot") onPresence(data);
     } catch {
       // ignore
     }

@@ -54,29 +54,80 @@ export default function Signup() {
       return;
     }
 
-    if (role === 'Lawyer') {
-      const lawyerId = String(payload.lawyer_id || '').trim();
-      if (!lawyerId) {
-        alert('Please enter a valid Lawyer ID');
-        return;
-      }
-
-      try {
-        const checkRes = await fetch(`${API_BASE}/auth/lawyer-id/check/`, {
+    // Pre-check duplicates BEFORE sending OTP
+    try {
+      if (role === 'User') {
+        const username = String(payload.username || '').trim();
+        const phone = String(payload.phone || '').trim();
+        const checkRes = await fetch(`${API_BASE}/auth/signup/user/check/`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ lawyer_id: lawyerId }),
+          body: JSON.stringify({ username, phone }),
         });
         const checkJson = await checkRes.json();
+
         if (!checkRes.ok) {
-          const detail = checkJson.detail || 'Lawyer ID check failed';
-          alert(detail);
+          if (checkRes.status === 409 && checkJson.errors) {
+            const errors = checkJson.errors;
+
+            if (errors.username) {
+              alert('Username already taken');
+              return;
+            }
+
+            if (errors.phone) {
+              alert('Phone number already exist');
+              return;
+            }
+          }
+
+          alert(checkJson.detail || 'User availability check failed');
           return;
         }
-      } catch (err) {
-        alert('Lawyer ID check failed: ' + err.message);
-        return;
       }
+
+      if (role === 'Lawyer') {
+        const lawyerId = String(payload.lawyer_id || '').trim();
+        if (!lawyerId) {
+          alert('Please enter a valid Lawyer ID');
+          return;
+        }
+        const username = String(payload.username || '').trim();
+        const phone = String(payload.phone || '').trim();
+        const checkRes = await fetch(`${API_BASE}/auth/signup/lawyer/check/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, phone, lawyer_id: lawyerId }),
+        });
+        const checkJson = await checkRes.json();
+
+        if (!checkRes.ok) {
+          if (checkRes.status === 409 && checkJson.errors) {
+            const errors = checkJson.errors;
+
+            if (errors.lawyer_id) {
+              alert('Lawyer ID already registered');
+              return;
+            }
+
+            if (errors.username) {
+              alert('Username already taken');
+              return;
+            }
+
+            if (errors.phone) {
+              alert('Phone number already exist');
+              return;
+            }
+          }
+
+          alert(checkJson.detail || 'Lawyer availability check failed');
+          return;
+        }
+      }
+    } catch (err) {
+      alert('Availability check failed: ' + err.message);
+      return;
     }
 
     try {

@@ -42,7 +42,16 @@ export default function Login() {
         body: JSON.stringify(payload),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.detail || 'Login failed');
+      if (!res.ok) {
+        const firstFieldError = (obj) => {
+          if (!obj || typeof obj !== 'object') return null;
+          const val = Object.values(obj)[0];
+          if (Array.isArray(val)) return val[0];
+          if (typeof val === 'string') return val;
+          return null;
+        };
+        throw new Error(json.detail || firstFieldError(json) || 'Login failed');
+      }
       
       if (json.token) sessionStorage.setItem('authToken', json.token);
       if (json.role) sessionStorage.setItem('role', json.role);

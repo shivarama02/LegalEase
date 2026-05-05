@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import { Search, MessageSquare, Clock, Scale, ChevronRight, Loader2 } from "lucide-react";
+import { Search, MessageSquare, Clock, Scale, ChevronRight, } from "lucide-react";
 import ChatWindow from "../../components/ChatWindow";
 import UserSidebar from "../../components/UserSidebar";
 import { getMyRooms } from "../../services/chatApi";
@@ -28,13 +28,20 @@ export default function UserChat() {
   // ─── presence WebSocket ───────────────────────────────────────────────────
 
   useEffect(() => {
-    const ws = connectPresenceSocket(({ user_id, online }) => {
-      setOnlineUsers((prev) => {
-        const next = new Set(prev);
-        if (online) next.add(String(user_id));
-        else next.delete(String(user_id));
-        return next;
-      });
+    const ws = connectPresenceSocket((evt) => {
+      if (evt?.type === 'presence_snapshot') {
+        setOnlineUsers(new Set((evt.online_user_ids || []).map(String)));
+        return;
+      }
+      if (evt?.type === 'presence') {
+        const { user_id, online } = evt;
+        setOnlineUsers((prev) => {
+          const next = new Set(prev);
+          if (online) next.add(String(user_id));
+          else next.delete(String(user_id));
+          return next;
+        });
+      }
     });
     presenceRef.current = ws;
     return () => { ws.onclose = null; ws.close(); };
@@ -236,6 +243,7 @@ export default function UserChat() {
           participantName={participantName}
           myUserId={myUserId}
           partnerUserId={selectedRoom?.lawyer_user_id}
+          partnerOnline={onlineUsers.has(String(selectedRoom?.lawyer_user_id))}
           onClose={() => setSelectedRoom(null)}
         />
       ) : selectedRoom?.status === "pending" ? (

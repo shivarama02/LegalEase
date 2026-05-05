@@ -14,11 +14,11 @@ import { connectChatSocket } from "../services/chatSocket";
  *  partnerUserId   : the OTHER participant's Django user.id (for presence matching)
  *  onClose         : callback to close / deselect the room (optional)
  */
-export default function ChatWindow({ room, participantName, myUserId, partnerUserId, onClose }) {
+export default function ChatWindow({ room, participantName, myUserId, partnerUserId, partnerOnline: partnerOnlineProp, onClose }) {
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState("");
   const [wsStatus, setWsStatus] = useState("connecting"); // connecting | open | closed
-  const [partnerOnline, setPartnerOnline] = useState(false);
+  const [roomPartnerOnline, setRoomPartnerOnline] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [actionLoading, setActionLoading] = useState(null); // 'clear' | 'delete'
   const menuRef = useRef(null);
@@ -26,6 +26,9 @@ export default function ChatWindow({ room, participantName, myUserId, partnerUse
   const bottomRef = useRef(null);
   const myId = myUserId != null ? String(myUserId) : null;
   const partnerId = partnerUserId != null ? String(partnerUserId) : null;
+
+  // Prefer global presence (from ws/presence) when available; OR with room-level presence.
+  const partnerOnline = Boolean(partnerOnlineProp) || roomPartnerOnline;
 
   // ─── helpers ────────────────────────────────────────────────────────────
 
@@ -65,7 +68,7 @@ export default function ChatWindow({ room, participantName, myUserId, partnerUse
 
     setMessages([]);
     setWsStatus("connecting");
-    setPartnerOnline(false);
+    setRoomPartnerOnline(false);
 
     // Fetch REST message history
     getMessages(room.id)
@@ -93,10 +96,10 @@ export default function ChatWindow({ room, participantName, myUserId, partnerUse
         if (data.type === "presence") {
           // Only update if it's the partner's status, not our own echo
           if (partnerId && String(data.user_id) === partnerId) {
-            setPartnerOnline(data.online);
+            setRoomPartnerOnline(Boolean(data.online));
           } else if (!partnerId && String(data.user_id) !== myId) {
             // fallback when partnerUserId wasn't passed
-            setPartnerOnline(data.online);
+            setRoomPartnerOnline(Boolean(data.online));
           }
           return;
         }
@@ -114,7 +117,7 @@ export default function ChatWindow({ room, participantName, myUserId, partnerUse
     ws.onclose = () => {
       if (!cancelled) {
         setWsStatus("closed");
-        setPartnerOnline(false);
+        setRoomPartnerOnline(false);
       }
     };
 
@@ -224,26 +227,42 @@ export default function ChatWindow({ room, participantName, myUserId, partnerUse
 
   // ─── header status line ───────────────────────────────────────────────────
 
-  const headerStatus =
-    wsStatus !== "open" ? (
-      <span className="text-xs text-yellow-300">
-        {wsStatus === "connecting" ? "connecting…" : "reconnecting…"}
-      </span>
-    ) : partnerOnline ? (
-      <span className="text-xs text-green-300 flex items-center gap-1">
-        <span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block" />
-        online
-      </span>
-    ) : (
-      <span className="text-xs text-gray-300">offline</span>
-    );
+  const headerStatusText =
+    wsStatus !== "open"
+      ? wsStatus === "connecting"
+        ? "connecting…"
+        : "reconnecting…"
+      : partnerOnline
+      ? "online"
+      : "offline";
+
+  const headerStatusDotClass =
+    wsStatus !== "open"
+      ? "bg-yellow-300"
+      : partnerOnline
+      ? "bg-green-400"
+      : "bg-gray-400";
+
+  const headerStatusTextClass =
+    wsStatus !== "open"
+      ? "text-yellow-300"
+      : partnerOnline
+      ? "text-green-300"
+      : "text-gray-300";
+
+  const headerStatus = (
+    <span className={`text-xs flex items-center gap-1 ${headerStatusTextClass}`}>
+      <span className={`w-1.5 h-1.5 rounded-full inline-block ${headerStatusDotClass}`} />
+      {headerStatusText}
+    </span>
+  );
 
   // ─── render ───────────────────────────────────────────────────────────────
 
   return (
     <div className="flex-1 flex flex-col h-full bg-[#efeae2]">
       {/* ── Header ────────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow z-10">
+      <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow z-10 text-left">
 
         {/* Back button — always on the left */}
         {onClose && (
@@ -257,9 +276,9 @@ export default function ChatWindow({ room, participantName, myUserId, partnerUse
         )}
 
         {/* Name + status */}
-        <div className="flex-1 min-w-0">
-          <p className="font-semibold truncate text-sm leading-tight">{participantName || "Chat"}</p>
-          <p className="leading-tight">{headerStatus}</p>
+        <div className="flex-1 min-w-0 flex flex-col items-start text-left">
+          <p className="font-semibold truncate text-sm leading-tight text-left">{participantName || "Chat"}</p>
+          <p className="leading-tight text-left">{headerStatus}</p>
         </div>
 
         {/* Profile avatar + dropdown — right side */}

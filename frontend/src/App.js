@@ -19,6 +19,8 @@ import ComplaintTemplateManagement from './pages/admin/ComplaintTemplateManageme
 import FeedbackManagement from './pages/admin/FeedbackManagement';
 import NotificationManagement from './pages/admin/NotificationManagement';
 import AdminSettings from './pages/admin/Settings';
+import ComplaintHistoryManagement from './pages/admin/ComplaintHistoryManagement';
+import QueryManagement from './pages/admin/QueryManagement';
 import LawInfo from './pages/user/LawInfo';
 import PublicLawInfo from './pages/LawInfo';
 import LawList from './pages/user/LawList';
@@ -102,6 +104,8 @@ function App() {
             <Route path="/admin/lawyer-management" element={<LawyerManagement />} />
             <Route path="/admin/user-management" element={<UserManagement />} />
             <Route path="/admin/complaint-templates" element={<ComplaintTemplateManagement />} />
+            <Route path="/admin/complaint-history-management" element={<ComplaintHistoryManagement />} />
+            <Route path="/admin/query-management" element={<QueryManagement />} />
             <Route path="/admin/feedback-management" element={<FeedbackManagement />} />
             <Route path="/admin/notification-management" element={<NotificationManagement />} />
             <Route path="/admin/settings" element={<AdminSettings />} />

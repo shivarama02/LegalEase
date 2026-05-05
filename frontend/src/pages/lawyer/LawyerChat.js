@@ -28,13 +28,20 @@ export default function LawyerChat() {
   // ─── presence WebSocket ───────────────────────────────────────────────────
 
   useEffect(() => {
-    const ws = connectPresenceSocket(({ user_id, online }) => {
-      setOnlineUsers((prev) => {
-        const next = new Set(prev);
-        if (online) next.add(String(user_id));
-        else next.delete(String(user_id));
-        return next;
-      });
+    const ws = connectPresenceSocket((evt) => {
+      if (evt?.type === 'presence_snapshot') {
+        setOnlineUsers(new Set((evt.online_user_ids || []).map(String)));
+        return;
+      }
+      if (evt?.type === 'presence') {
+        const { user_id, online } = evt;
+        setOnlineUsers((prev) => {
+          const next = new Set(prev);
+          if (online) next.add(String(user_id));
+          else next.delete(String(user_id));
+          return next;
+        });
+      }
     });
     presenceRef.current = ws;
     return () => {
@@ -302,6 +309,7 @@ export default function LawyerChat() {
           participantName={participantName}
           myUserId={myUserId}
           partnerUserId={selectedRoom?.client_id}
+          partnerOnline={onlineUsers.has(String(selectedRoom?.client_id))}
           onClose={() => setSelectedRoom(null)}
         />
       ) : selectedRoom && selectedRoom.status === "pending" ? (

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Scale, Users, UserCog, MessageSquare, BarChart3, LogOut, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Scale, Users, UserCog, MessageSquare, FileText, Mail, LogOut, Menu, X } from 'lucide-react';
 
 export default function AdminSidebar() {
   const navigate = useNavigate();
@@ -22,6 +22,8 @@ export default function AdminSidebar() {
   const links = [
     { to: '/admin/Dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { to: '/admin/law-info-management', icon: Scale, label: 'Law Info' },
+    { to: '/admin/complaint-history-management', icon: FileText, label: 'Complaints' },
+    { to: '/admin/query-management', icon: Mail, label: 'Queries' },
     { to: '/admin/user-management', icon: Users, label: 'Users' },
     { to: '/admin/lawyer-management', icon: UserCog, label: 'Lawyers' },
     { to: '/admin/feedback-management', icon: MessageSquare, label: 'Feedback' },

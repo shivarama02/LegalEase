@@ -1,10 +1,11 @@
 from django.contrib.auth.models import User
 from django.contrib.auth.hashers import make_password, check_password
+from django.contrib.auth import authenticate
 from rest_framework import serializers
 from rest_framework.authtoken.models import Token
 from django.db.models import Avg
 from django.db import transaction
-from .models import Client, Lawyer, Complaint, ComplaintDraft, Appointment, Feedback, ChatRoom, ChatMessage, Notification, LawDomain, LawCategory, Law, LawSection, LawSectionDetail, EmailOTP, PreVerifiedLawyer
+from .models import Client, Lawyer, Complaint, ComplaintDraft, Appointment, Feedback, ChatRoom, ChatMessage, Notification, ContactQuery, LawDomain, LawCategory, Law, LawSection, LawSectionDetail, EmailOTP, PreVerifiedLawyer
 
 
 # ──────────────────────────────────────────
@@ -164,6 +165,7 @@ class ClientSignupSerializer(serializers.ModelSerializer):
 
 
 class LawyerSignupSerializer(serializers.ModelSerializer):
+    lawyer_id = serializers.CharField(required=True, allow_blank=False)
     password = serializers.CharField(write_only=True)
 
     class Meta:
@@ -225,39 +227,63 @@ class LoginSerializer(serializers.Serializer):
     role = serializers.ChoiceField(choices=['user', 'lawyer'])
     identifier = serializers.CharField()
     password = serializers.CharField(write_only=True)
+    lawyer_id = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
     def validate(self, attrs):
         role = attrs['role']
-        identifier = attrs['identifier']
-        password = attrs['password']
-        user_obj = None
+        identifier = (attrs.get('identifier') or '').strip()
+        password = attrs.get('password')
+
+        if not identifier:
+            raise serializers.ValidationError({'identifier': 'identifier is required'})
+
+        # Authenticate against Django's auth user (the canonical password store)
+        user = authenticate(username=identifier, password=password)
+        if not user:
+            raise serializers.ValidationError({'detail': 'Invalid credentials'})
+
+        # Staff/superuser may authenticate through either form
+        if user.is_staff or user.is_superuser:
+            attrs['user'] = user
+            attrs['effective_role'] = 'admin'
+            return attrs
+
         if role == 'user':
-            try:
-                user_obj = Client.objects.get(username=identifier)
-            except Client.DoesNotExist:
-                raise serializers.ValidationError('Invalid username or password')
-        elif role == 'lawyer':
-            try:
-                # allow login via lawyer_id or username
-                try:
-                    user_obj = Lawyer.objects.get(lawyer_id=identifier)
-                except Lawyer.DoesNotExist:
-                    user_obj = Lawyer.objects.get(username=identifier)
-            except Lawyer.DoesNotExist:
-                # Allow superuser / staff login through the lawyer form
-                from django.contrib.auth.models import User as AuthUser
-                try:
-                    admin_user = AuthUser.objects.get(username=identifier, is_staff=True)
-                    attrs['obj'] = admin_user
-                    attrs['is_admin'] = True
-                    return attrs
-                except AuthUser.DoesNotExist:
-                    raise serializers.ValidationError('Invalid lawyer credentials')
+            if not hasattr(user, 'client_profile'):
+                raise serializers.ValidationError({'detail': 'Not a user account'})
+            attrs['user'] = user
+            attrs['effective_role'] = 'user'
+            return attrs
 
-        if hasattr(user_obj, 'password') and not check_password(password, user_obj.password):
-            raise serializers.ValidationError('Invalid credentials')
+        # role == 'lawyer'
+        lawyer_id = (attrs.get('lawyer_id') or '').strip()
+        if not lawyer_id:
+            raise serializers.ValidationError({'lawyer_id': 'lawyer_id is required'})
 
-        attrs['obj'] = user_obj
+        if not hasattr(user, 'lawyer_profile'):
+            raise serializers.ValidationError({'detail': 'Not a lawyer account'})
+
+        lawyer = user.lawyer_profile
+
+        # Must match the logged-in lawyer profile
+        if (lawyer.lawyer_id or '').strip() != lawyer_id:
+            raise serializers.ValidationError({'lawyer_id': 'Incorrect lawyer_id for this account'})
+
+        # Must exist in pre-verified registry
+        pre_verified = PreVerifiedLawyer.objects.filter(lawyer_id=lawyer_id).first()
+        if not pre_verified:
+            raise serializers.ValidationError({'lawyer_id': 'Invalid lawyer_id. Contact admin for pre-verification'})
+
+        # If the pre-verified record isn't marked registered, block login
+        if not pre_verified.is_registered:
+            raise serializers.ValidationError({'lawyer_id': 'lawyer_id is not registered yet. Please signup first'})
+
+        # If the lawyer is linked to a different pre-verified record, block
+        if lawyer.pre_verified_lawyer_id and lawyer.pre_verified_lawyer_id != pre_verified.id:
+            raise serializers.ValidationError({'lawyer_id': 'lawyer_id does not match this lawyer profile'})
+
+        attrs['user'] = user
+        attrs['effective_role'] = 'lawyer'
         return attrs
 
 
@@ -274,7 +300,7 @@ class ComplaintSerializer(serializers.ModelSerializer):
             'evidence_summary','relief_sought','status','assigned_lawyer','law_references','law_reference_ids','extra_data',
             'created_at','updated_at'
         ]
-        read_only_fields = ['status','created_at','updated_at','user']
+        read_only_fields = ['created_at','updated_at','user']
 
     def create(self, validated_data):
         # user injected from view
@@ -396,6 +422,26 @@ class NotificationSerializer(serializers.ModelSerializer):
             return f'{days}d ago'
         weeks = int(days // 7)
         return f'{weeks}w ago'
+
+
+# ──────────────────────────────────────────
+# CONTACT / QUERIES SERIALIZER
+# ──────────────────────────────────────────
+
+
+class ContactQuerySerializer(serializers.ModelSerializer):
+    user_id = serializers.IntegerField(source='user.id', read_only=True)
+
+    class Meta:
+        model = ContactQuery
+        fields = [
+            'id', 'user', 'user_id',
+            'name', 'email', 'subject', 'message',
+            'status', 'admin_notes',
+            'ip_address',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = ['user', 'ip_address', 'created_at', 'updated_at', 'user_id']
 
 
 # ──────────────────────────────────────────

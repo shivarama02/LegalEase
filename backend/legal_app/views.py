@@ -12,12 +12,12 @@ from django.utils import timezone
 from datetime import timedelta
 import random
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
 from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse
 from io import BytesIO
 
-from .models import Client, Lawyer, Complaint, ComplaintDraft, Appointment, Feedback, ChatRoom, ChatMessage, Notification, LawDomain, LawCategory, Law, LawSection, LawSectionDetail, EmailOTP, PreVerifiedLawyer
+from .models import Client, Lawyer, Complaint, ComplaintDraft, Appointment, Feedback, ChatRoom, ChatMessage, Notification, ContactQuery, LawDomain, LawCategory, Law, LawSection, LawSectionDetail, EmailOTP, PreVerifiedLawyer
 from .serializers import (
     ClientSerializer,
     LawyerSerializer,
@@ -31,6 +31,7 @@ from .serializers import (
     ChatRoomSerializer,
     ChatMessageSerializer,
     NotificationSerializer,
+    ContactQuerySerializer,
     LawDomainSerializer,
     LawCategorySerializer,
     LawSerializer,
@@ -273,7 +274,19 @@ class ComplaintViewSet(viewsets.ModelViewSet):
         return qs.filter(user=user)
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        user = self.request.user
+        if getattr(user, 'is_staff', False):
+            serializer.save(user=user)
+        else:
+            serializer.save(user=user, status='draft')
+
+    def perform_update(self, serializer):
+        user = self.request.user
+        if getattr(user, 'is_staff', False):
+            serializer.save()
+        else:
+            # Non-staff may update fields, but cannot change status.
+            serializer.save(status=serializer.instance.status)
 
 
 class ComplaintDraftViewSet(viewsets.ModelViewSet):
@@ -440,6 +453,27 @@ class FeedbackViewSet(viewsets.ModelViewSet):
             )
 
 
+class ContactQueryViewSet(viewsets.ModelViewSet):
+    queryset = ContactQuery.objects.all().select_related('user').order_by('-created_at')
+    serializer_class = ContactQuerySerializer
+    filter_backends = [filters.SearchFilter, DjangoFilterBackend, filters.OrderingFilter]
+    search_fields = ['name', 'email', 'subject', 'message']
+    filterset_fields = ['status']
+    ordering_fields = ['created_at', 'updated_at', 'status']
+
+    def get_permissions(self):
+        # Public contact form submission
+        if self.action == 'create':
+            return [AllowAny()]
+        # Admin-only CRUD (must be authenticated and staff)
+        return [IsAuthenticated(), IsAdminUser()]
+
+    def perform_create(self, serializer):
+        user = self.request.user if self.request.user.is_authenticated else None
+        ip = self.request.META.get('REMOTE_ADDR')
+        serializer.save(user=user, ip_address=ip)
+
+
 class ClientSignupView(APIView):
     def post(self, request):
         ser = ClientSignupSerializer(data=request.data)
@@ -530,6 +564,56 @@ def check_lawyer_id(request):
     return Response({'detail': 'lawyer_id is available', 'available': True}, status=200)
 
 
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def check_user_signup(request):
+    username = (request.data.get('username') or '').strip()
+    phone = (request.data.get('phone') or '').strip()
+
+    if not username:
+        return Response({'detail': 'username is required', 'errors': {'username': 'required'}}, status=400)
+    if not phone:
+        return Response({'detail': 'phone is required', 'errors': {'phone': 'required'}}, status=400)
+
+    if User.objects.filter(username__iexact=username).exists() or Client.objects.filter(username__iexact=username).exists():
+        return Response({'detail': 'Username already exists', 'available': False, 'errors': {'username': 'exists'}}, status=409)
+
+    if Client.objects.filter(phone=phone).exists():
+        return Response({'detail': 'Phone already exists', 'available': False, 'errors': {'phone': 'exists'}}, status=409)
+
+    return Response({'detail': 'User signup is available', 'available': True}, status=200)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def check_lawyer_signup(request):
+    username = (request.data.get('username') or '').strip()
+    phone = (request.data.get('phone') or '').strip()
+    lawyer_id = (request.data.get('lawyer_id') or '').strip()
+
+    if not username:
+        return Response({'detail': 'username is required', 'errors': {'username': 'required'}}, status=400)
+    if not phone:
+        return Response({'detail': 'phone is required', 'errors': {'phone': 'required'}}, status=400)
+    if not lawyer_id:
+        return Response({'detail': 'lawyer_id is required', 'errors': {'lawyer_id': 'required'}}, status=400)
+
+    pre_verified = PreVerifiedLawyer.objects.filter(lawyer_id=lawyer_id).first()
+    if not pre_verified:
+        return Response({'detail': 'The lawyer id does not exist', 'available': False, 'errors': {'lawyer_id': 'not_found'}}, status=404)
+
+    if pre_verified.is_registered or Lawyer.objects.filter(lawyer_id=lawyer_id).exists():
+        return Response({'detail': 'This lawyer_id is already registered', 'available': False, 'errors': {'lawyer_id': 'already_registered'}}, status=409)
+
+    if User.objects.filter(username__iexact=username).exists() or Lawyer.objects.filter(username__iexact=username).exists():
+        return Response({'detail': 'Username already exists', 'available': False, 'errors': {'username': 'exists'}}, status=409)
+
+    if Lawyer.objects.filter(phone=phone).exists():
+        return Response({'detail': 'Phone already exists', 'available': False, 'errors': {'phone': 'exists'}}, status=409)
+
+    return Response({'detail': 'Lawyer signup is available', 'available': True}, status=200)
+
+
 class LawyerSignupView(APIView):
     def post(self, request):
         ser = LawyerSignupSerializer(data=request.data)
@@ -545,17 +629,12 @@ class LoginView(APIView):
         ser = LoginSerializer(data=request.data)
         if not ser.is_valid():
             return Response(ser.errors, status=400)
+
         data = ser.validated_data
-        user = authenticate(username=data['identifier'], password=data['password'])
-        if not user:
-            return Response({'detail': 'Invalid credentials'}, status=400)
+        user = data['user']
+        role = data.get('effective_role') or ('lawyer' if hasattr(user, 'lawyer_profile') else 'user')
+
         token, _ = Token.objects.get_or_create(user=user)
-        # Superuser / staff → admin role
-        if user.is_staff or user.is_superuser:
-            return Response({'token': token.key, 'role': 'admin', 'user_id': user.id}, status=200)
-        role = 'user'
-        if hasattr(user, 'lawyer_profile'):
-            role = 'lawyer'
         return Response({'token': token.key, 'role': role, 'user_id': user.id}, status=200)
 
 

@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.contrib.auth.models import User
 from .models import Client, Lawyer, Feedback, LawDomain, LawCategory, Law, LawSection, LawSectionDetail, EmailOTP, PreVerifiedLawyer
 
 @admin.register(LawDomain)
@@ -35,11 +36,35 @@ class ClientAdmin(admin.ModelAdmin):
     search_fields = ('cname', 'email', 'phone', 'username')
     list_filter = ('created_at',)
 
+    def delete_model(self, request, obj):
+        user_id = obj.user_id
+        super().delete_model(request, obj)
+        if user_id:
+            User.objects.filter(id=user_id).delete()
+
+    def delete_queryset(self, request, queryset):
+        user_ids = list(queryset.exclude(user_id__isnull=True).values_list('user_id', flat=True))
+        super().delete_queryset(request, queryset)
+        if user_ids:
+            User.objects.filter(id__in=user_ids).delete()
+
 @admin.register(Lawyer)
 class LawyerAdmin(admin.ModelAdmin):
     list_display = ('lname', 'specialization', 'location', 'experience_years', 'charge', 'email')
     list_filter = ('specialization', 'location')
     search_fields = ('lname', 'specialization', 'location', 'email')
+
+    def delete_model(self, request, obj):
+        user_id = obj.user_id
+        super().delete_model(request, obj)
+        if user_id:
+            User.objects.filter(id=user_id).delete()
+
+    def delete_queryset(self, request, queryset):
+        user_ids = list(queryset.exclude(user_id__isnull=True).values_list('user_id', flat=True))
+        super().delete_queryset(request, queryset)
+        if user_ids:
+            User.objects.filter(id__in=user_ids).delete()
 
 
 @admin.register(Feedback)

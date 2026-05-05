@@ -65,7 +65,7 @@ export default function AdminDashboard() {
     { label: 'Feedback', value: stats.feedbacks, icon: MessageSquare, color: 'from-amber-500 to-orange-500', bg: 'bg-amber-50', text: 'text-amber-600', to: '/admin/feedback-management' },
     { label: 'Appointments', value: stats.appointments, icon: CalendarDays, color: 'from-violet-500 to-purple-500', bg: 'bg-violet-50', text: 'text-violet-600', to: '/admin/reports' },
     { label: 'Laws', value: stats.laws, icon: Scale, color: 'from-indigo-500 to-blue-500', bg: 'bg-indigo-50', text: 'text-indigo-600', to: '/admin/law-info-management' },
-    { label: 'Complaints', value: stats.complaints, icon: FileText, color: 'from-rose-500 to-pink-500', bg: 'bg-rose-50', text: 'text-rose-600', to: '/admin/reports' },
+    { label: 'Complaints', value: stats.complaints, icon: FileText, color: 'from-rose-500 to-pink-500', bg: 'bg-rose-50', text: 'text-rose-600', to: '/admin/complaint-history-management' },
   ] : [];
 
   return (

@@ -93,7 +93,7 @@ export default function LawDetails() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
-                              <h3 className="text-sm font-bold text-slate-800 group-hover:text-indigo-700 transition-colors">§ {s.section_number} — {s.section_title}</h3>
+                              <h3 className="text-sm font-bold text-slate-800 group-hover:text-indigo-700 transition-colors"> {s.section_number} — {s.section_title}</h3>
                               {s.chapter && <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 text-[10px] font-semibold">{s.chapter}</span>}
                               {s.detail && <span className="px-2 py-0.5 rounded-full bg-green-50 text-green-600 text-[10px] font-semibold">Has Details</span>}
                             </div>
@@ -115,7 +115,7 @@ export default function LawDetails() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" onClick={() => setSelected(null)}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between p-5 border-b border-slate-100">
-              <h2 className="text-lg font-bold text-slate-900">§ {selected.section_number} — {selected.section_title}</h2>
+              <h2 className="text-lg font-bold text-slate-900"> {selected.section_number} — {selected.section_title}</h2>
               <button onClick={() => setSelected(null)} className="p-1 rounded-lg hover:bg-slate-100 text-slate-400"><X size={18} /></button>
             </div>
             <div className="p-5 space-y-5">

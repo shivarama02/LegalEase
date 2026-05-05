@@ -1,8 +1,30 @@
 import json
+import asyncio
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.contrib.auth.models import AnonymousUser
 from django.utils import timezone
+
+
+# In-process presence tracking (dev-friendly).
+# Note: this tracks users connected to ws/presence/ in THIS server process.
+_ONLINE_USER_IDS = set()
+_ONLINE_LOCK = asyncio.Lock()
+
+
+async def _set_user_online(user_id: int, online: bool):
+    async with _ONLINE_LOCK:
+        uid = str(user_id)
+        if online:
+            _ONLINE_USER_IDS.add(uid)
+        else:
+            _ONLINE_USER_IDS.discard(uid)
+        return list(_ONLINE_USER_IDS)
+
+
+async def _get_online_snapshot():
+    async with _ONLINE_LOCK:
+        return list(_ONLINE_USER_IDS)
 
 
 class ChatConsumer(AsyncWebsocketConsumer):
@@ -206,11 +228,24 @@ class PresenceConsumer(AsyncWebsocketConsumer):
         await self.channel_layer.group_add(self.personal_group, self.channel_name)
         await self.accept()
 
+        # Mark online and send initial snapshot to this client
+        await _set_user_online(self.user.id, True)
+        snapshot = await _get_online_snapshot()
+        await self.send(
+            text_data=json.dumps(
+                {
+                    "type": "presence_snapshot",
+                    "online_user_ids": snapshot,
+                }
+            )
+        )
+
         # Tell all room partners the user is now online
         await self._broadcast_presence(online=True)
 
     async def disconnect(self, close_code):
         if hasattr(self, "personal_group"):
+            await _set_user_online(self.user.id, False)
             await self._broadcast_presence(online=False)
             await self.channel_layer.group_discard(self.personal_group, self.channel_name)
 

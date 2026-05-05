@@ -39,7 +39,7 @@ const STATS = [
 
 const STEPS = [
   { num: '01', title: 'Create Account',     desc: 'Sign up as a user or a lawyer in under a minute.' },
-  { num: '02', title: 'Explore Resources',  desc: 'Browse laws, find lawyers, or ask the AI chatbot.' },
+  { num: '02', title: 'Explore Resources',  desc: 'Browse laws, find lawyers, or ask the AI Assistant.' },
   { num: '03', title: 'Take Action',        desc: 'File complaints, book appointments, or chat with a lawyer.' },
 ];
 

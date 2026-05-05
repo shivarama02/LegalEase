@@ -15,6 +15,8 @@ from .views import (
     SendOTPView,
     VerifyOTPView,
     check_lawyer_id,
+    check_user_signup,
+    check_lawyer_signup,
     LoginView,
     chat_with_gemini,
     generate_complaint_pdf,
@@ -36,6 +38,7 @@ from .views import (
     notification_stats,
     broadcast_notification,
     unread_feedback_count,
+    ContactQueryViewSet,
 )
 
 router = DefaultRouter()
@@ -51,6 +54,7 @@ router.register(r'complaint-drafts', ComplaintDraftViewSet, basename='complaint-
 router.register(r'appointments', AppointmentViewSet, basename='appointments')
 router.register(r'feedbacks', FeedbackViewSet, basename='feedbacks')
 router.register(r'notifications', NotificationViewSet, basename='notifications')
+router.register(r'contact-queries', ContactQueryViewSet, basename='contact-queries')
 
 urlpatterns = [
     path('chat/create-room/<int:lawyer_id>/', create_or_get_chat_room, name='create_chat_room'),
@@ -75,6 +79,8 @@ urlpatterns = [
     path('', include(router.urls)),
     path('auth/signup/user/', ClientSignupView.as_view()),
     path('auth/signup/lawyer/', LawyerSignupView.as_view()),
+    path('auth/signup/user/check/', check_user_signup),
+    path('auth/signup/lawyer/check/', check_lawyer_signup),
     path('auth/otp/send/', SendOTPView.as_view()),
     path('auth/otp/verify/', VerifyOTPView.as_view()),
     path('auth/lawyer-id/check/', check_lawyer_id),
